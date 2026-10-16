@@ -1,0 +1,12 @@
+ok   picks.jsonl p-20261017-93 claim 5 verdicts 2
+ok   picks.jsonl p-20261017-94 claim 6 verdicts 2
+ok   picks.jsonl p-20261017-95 claim 7 verdicts 1
+ok   picks.jsonl p-20261018-96 claim 8 verdicts 1
+ok   picks.jsonl p-20261018-97 claim 9 verdicts 1
+ok   picks.jsonl+hostile-picks.jsonl p-20261017-93 claim 5 verdicts 2
+ok   picks.jsonl+hostile-picks.jsonl p-20261017-94 claim 6 verdicts 2
+ok   picks.jsonl+hostile-picks.jsonl p-20261017-95 claim 7 verdicts 1
+ok   picks.jsonl+hostile-picks.jsonl p-20261018-96 claim 8 verdicts 1
+ok   picks.jsonl+hostile-picks.jsonl p-20261018-97 claim 9 verdicts 1
+ok   picks.jsonl+hostile-picks.jsonl p-20261019-72 claim 1 verdicts 0
+engine vs harness 11/11

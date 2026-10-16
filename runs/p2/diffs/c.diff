@@ -1,0 +1,1941 @@
+diff --git a/.cursor/skills/verify-draft-day/features/README.md b/.cursor/skills/verify-draft-day/features/README.md
+index f8aa5c3..a219047 100644
+--- a/.cursor/skills/verify-draft-day/features/README.md
++++ b/.cursor/skills/verify-draft-day/features/README.md
+@@ -28,6 +28,7 @@ This directory is the maintained source for verifying the War Room. Read the ind
+ ## Features
+ 
+ - [Big Board](./big-board.md) lists seeded picks with status chips and run counts.
++- [Decision log](./timeline.md) reads each pick as stages, runs, and one plain sentence per event.
+ - [New pick](./new-pick.md) queues an idea from the form into the inbox and onto the board.
+ - [Pick page](./pick-page.md) shows the scouting report, candidates, scorecard, trades, physical, and decision log.
+ - [Live updates](./live-updates.md) refresh the open board or pick page when an event or inbox row lands.
+diff --git a/.cursor/skills/verify-draft-day/features/live-updates.md b/.cursor/skills/verify-draft-day/features/live-updates.md
+index 786d0f6..b1d170e 100644
+--- a/.cursor/skills/verify-draft-day/features/live-updates.md
++++ b/.cursor/skills/verify-draft-day/features/live-updates.md
+@@ -21,7 +21,7 @@ Preconditions:
+ - **Inbox update.** With the Big Board open, submit `New pick` with idea `Show the run count in the page title`. Within two seconds the table shows that idea and the document did not reload.
+ - **Event update.** Open the drafted pick. In another terminal, record a lesson:
+   `node --experimental-strip-types src/cli/dd.ts record <pickId> lesson_recorded --topic board --text "status chips need a legend" --data "$DATA"`.
+-  Within two seconds the decision log on the open page includes that lesson.
++  Within two seconds the Decision log on the open page includes that lesson as one plain sentence.
+ - **Proof.** The inbox half is the same screenshot as New pick. For the event half, screenshot `/opt/cursor/artifacts/war-room/pick-page-after-lesson.png` if you drive it. A run that only drives New pick must say the lesson path was not driven.
+ 
+ ## Gotchas
+diff --git a/.cursor/skills/verify-draft-day/features/timeline.md b/.cursor/skills/verify-draft-day/features/timeline.md
+new file mode 100644
+index 0000000..b010e40
+--- /dev/null
++++ b/.cursor/skills/verify-draft-day/features/timeline.md
+@@ -0,0 +1,37 @@
++# Decision log
++
++The Decision log is the phone-readable history of one pick: a summary sentence, stage durations, every agent run, and one plain sentence per event.
++
++## Sub-features
++
++- `timeline-read` shows the sample pick's summary, stages, runs, and events.
++- `timeline-phone` keeps the page within a 390 px width.
++- `timeline-live` updates an open Decision log after `dd record`.
++- `timeline-hostile` shows payload markup as text and does not link a bad agent id.
++
++## How to get to it (user POV)
++
++- After `control.sh seed-timeline`, open `#/picks/p-20261010-07`.
++- The region named `Decision log` is the last region on the pick page.
++
++## Driving it with the browser
++
++Preconditions:
++
++- `control.sh doctor` passes.
++- `control.sh seed-timeline` copied the sample fixture and `GET /api/picks/p-20261010-07` returned 200.
++
++- **Read the log.** Open `#/picks/p-20261010-07` at 1280×800. Scroll until the region named `Decision log` is at the top. The summary reads `drafted · 4h 43m · 9 runs`. The list named `Stages` includes `Intake 6m`, `Scouting Report 14m`, `Combine 1h 12m`, `Film Room 1h 18m`, `Trade 56m`, `Physical 57m`, and `Draft Pick` with no duration.
++- **Read the runs.** Scroll to the table named `Runs`. The first row is `c1 attempt 1`, duration `9m`, outcome `errored`. A later row is `c1 attempt 2`. Agent cells whose ids are real Cursor ids are links named `Agent` plus the run label, and they open in a new tab.
++- **Proof.** Screenshot `/opt/cursor/artifacts/war-room/timeline-drafted.png` with the summary and Stages visible. Screenshot `/opt/cursor/artifacts/war-room/timeline-runs.png` with the Runs table visible.
++- **Phone width.** Resize to 390×844. `document.documentElement.scrollWidth` is 390 or less. Screenshot `/opt/cursor/artifacts/war-room/timeline-phone.png`.
++- **Selftest agents.** Open the happy selftest pick (idea `Add a status legend to the War Room`). The summary ends `8 runs`. Agent ids such as `bc-c1-1` are text, not links. Screenshot `/opt/cursor/artifacts/war-room/timeline-selftest.png`.
++- **Live row.** `dd intake` a fresh pick in this data directory. Open its page. Record `candidate_launched --cand c1 --agent bc-11111111-2222-4333-8444-555555555555`. Within two seconds the Runs table shows a `running` row and an `Agent c1 attempt 1` link, without a reload. Screenshot `/opt/cursor/artifacts/war-room/timeline-live.png`. Record `candidate_finished --cand c1 --file` a report that holds one `dd-report` block. Within two seconds that row reads `finished`.
++- **Hostile text.** On another fresh pick, record `candidate_launched --cand c2 --agent 'javascript:alert(1)'` and `lesson_recorded --topic xss --text '<img src=x onerror=alert(1)>'`. Open the page. The lesson shows those characters. The Decision log contains no `img` element and no link for that agent. Screenshot `/opt/cursor/artifacts/war-room/timeline-hostile.png`.
++
++## Gotchas
++
++- The Runs table may scroll inside its own container. The page itself must not scroll sideways at 390 px.
++- Selftest agent ids are not Cursor agent ids. They stay text.
++- `dd record` does not check stage order. A fresh intake can take a candidate launch with no scouting report.
++- Record against the `DATA` directory from `/tmp/dd-verify/state.env`.
+diff --git a/.cursor/skills/verify-draft-day/helpers/control.sh b/.cursor/skills/verify-draft-day/helpers/control.sh
+index 97c3242..7e9f83c 100755
+--- a/.cursor/skills/verify-draft-day/helpers/control.sh
++++ b/.cursor/skills/verify-draft-day/helpers/control.sh
+@@ -90,6 +90,17 @@ EOF
+     done
+     echo "doctor: pass $URL pid $PID"
+     ;;
++  seed-timeline)
++    load_state
++    mkdir -p "$DATA/picks/p-20261010-07"
++    cp "$ROOT/test/fixtures/timeline/p-20261010-07.events.jsonl" "$DATA/picks/p-20261010-07/events.jsonl"
++    code="$(curl -s -o /dev/null -w "%{http_code}" "${URL}/api/picks/p-20261010-07")"
++    if [[ "$code" != "200" ]]; then
++      echo "seed-timeline: GET /api/picks/p-20261010-07 returned ${code}" >&2
++      exit 1
++    fi
++    echo "seeded p-20261010-07"
++    ;;
+   cleanup)
+     load_state
+     if kill -0 "$PID" 2>/dev/null; then
+@@ -109,7 +120,7 @@ EOF
+     echo "cleaned pid ${PID:-?} data ${DATA:-?}"
+     ;;
+   *)
+-    echo "usage: control.sh launch|doctor|cleanup" >&2
++    echo "usage: control.sh launch|doctor|seed-timeline|cleanup" >&2
+     exit 2
+     ;;
+ esac
+diff --git a/README.md b/README.md
+index 24f19a1..b0b0f38 100644
+--- a/README.md
++++ b/README.md
+@@ -42,7 +42,7 @@ A brand-new pick rests in `intake` until the scouting report is recorded. `scout
+ 
+ ## Commands
+ 
+-`intake`, `next`, `record`, `show`, `board`, `brief`, `lessons`, `serve`, `doctor`, `selftest`.
++`intake`, `next`, `record`, `show`, `timeline`, `board`, `brief`, `lessons`, `serve`, `doctor`, `selftest`.
+ 
+ Pass `--json` for a JSON payload. Pass `--data`, `--config`, and `--targets` to point at other files.
+ 
+diff --git a/docs/DECISIONS.tsv b/docs/DECISIONS.tsv
+index 80377b0..c4ea61e 100644
+--- a/docs/DECISIONS.tsv
++++ b/docs/DECISIONS.tsv
+@@ -10,3 +10,8 @@ ts	phase	decision	why	evidence	result
+ 2026-10-16T16:40:00Z	policy	The War Room appends inbox rows and never writes pick events	A11; dd intake --from-inbox is the only pick writer	src/server/http.ts	open
+ 2026-10-16T16:40:00Z	budget	Hard caps live in code: N 5, one relaunch, two fix loops, two judge passes	A10; config cannot raise them	src/core/budget.ts	open
+ 2026-10-16T17:12:00Z	verify	npm test, tsc --noEmit, and selftest are green; War Room New pick and the drafted pick page were driven in a browser	SPEC 001 VERIFY steps	/opt/cursor/artifacts/war-room/big-board.png	tests green
++2026-10-17T14:20:00Z	timeline	Each entry replays reduce() on the prefix at that entry's effective time and the sentence names the stage change	The decision log has to stay in agreement with the reducer, which is the only status source	src/core/timeline.ts	open
++2026-10-17T14:20:00Z	timeline	A run opens only when the replayed pick's runs count increases	counts.total has to equal reduce().runs, and that count is the run-opening events	src/core/timeline.ts	open
++2026-10-17T14:20:00Z	timeline	Effective time is the previous time when a timestamp is earlier or will not parse	Durations are differences of those times, so none go negative	src/core/timeline.ts	open
++2026-10-17T14:20:00Z	timeline	Agent links are emitted only for a bc- uuid; other ids stay text	Selftest ids and hostile payloads must not become links	src/core/timeline.ts	open
++2026-10-17T14:20:00Z	timeline	The Decision log is built with createTextNode on a 390 px layout	Payload text can contain markup and has to stay literal on a phone	src/ui/timeline.js	open
+diff --git a/src/cli/dd.ts b/src/cli/dd.ts
+index 6c7d39b..d38e135 100644
+--- a/src/cli/dd.ts
++++ b/src/cli/dd.ts
+@@ -13,6 +13,7 @@ import {
+   isPickId,
+   labelMapForPass,
+   loadConfig,
++  timeline,
+   loadTargets,
+   nextAction,
+   parseCandidateReport,
+@@ -544,6 +545,22 @@ async function selftest(paths: Paths, flags: Flags): Promise<number> {
+   }
+ }
+ 
++async function timelineCommand(paths: Paths, pickId: string | undefined): Promise<number> {
++  if (!pickId) throw new Exit("timeline needs a pick id");
++  const now = Date.now();
++  const { events } = await loadOne(paths, pickId, now);
++  const view = timeline(events, now);
++  if (!view) throw new Exit(`unknown pick ${pickId}`);
++  const relaunch = view.counts.relaunches === 1 ? "1 relaunch" : `${view.counts.relaunches} relaunches`;
++  const text = [
++    `${view.pickId}  ${view.status}  ${view.elapsedText}  ${view.counts.total} runs`,
++    ...view.entries.map((entry) => `+${entry.sinceStartText}  ${entry.stage}  ${entry.title}`),
++    `runs ${view.counts.total}: candidate ${view.counts.candidate} (${relaunch}), judge ${view.counts.judge}, graft ${view.counts.graft}, physical ${view.counts.physical}, fix ${view.counts.fix}`,
++  ].join("\n");
++  emit(paths, view, text);
++  return 0;
++}
++
+ function help(): string {
+   return [
+     "dd intake --idea TEXT --source chat --target BoydVC/draft-day [--n 3] [--approval ask]",
+@@ -551,6 +568,7 @@ function help(): string {
+     "dd next <pickId>",
+     "dd record <pickId> <event> [--file path] [--cand c1] [--agent id]",
+     "dd show <pickId>",
++    "dd timeline <pickId>",
+     "dd board",
+     "dd brief <pickId> <candidate|judge|graft|physical> [cand]",
+     "dd lessons",
+@@ -579,6 +597,8 @@ export async function main(argv: string[]): Promise<number> {
+         return await recordCommand(paths, rest[0], rest[1], flags);
+       case "show":
+         return await show(paths, rest[0]);
++      case "timeline":
++        return await timelineCommand(paths, rest[0]);
+       case "board":
+         return await board(paths);
+       case "brief":
+diff --git a/src/core/index.ts b/src/core/index.ts
+index 8277fa6..3a3efee 100644
+--- a/src/core/index.ts
++++ b/src/core/index.ts
+@@ -31,6 +31,20 @@ export type {
+ export { EVENT_TYPES, eventKey, isEventType } from "./events.ts";
+ export type { DraftEvent, EventType } from "./events.ts";
+ 
++export {
++  agentUrl,
++  formatDuration,
++  timeline,
++  type RunCounts,
++  type RunOutcome,
++  type RunRole,
++  type StageSpan,
++  type Timeline,
++  type TimelineEntry,
++  type TimelineLink,
++  type TimelineRun,
++} from "./timeline.ts";
++
+ export { asPickId, branchFor, formatPickId, isCandId, isPickId, pickIdPrefix } from "./ids.ts";
+ 
+ export { brandStoredTarget, loadTargets, parseTargetRepo } from "./target.ts";
+diff --git a/src/core/timeline.ts b/src/core/timeline.ts
+new file mode 100644
+index 0000000..7a647d8
+--- /dev/null
++++ b/src/core/timeline.ts
+@@ -0,0 +1,711 @@
++import { MAX_FIX_LOOPS } from "./budget.ts";
++import { isEventType, type DraftEvent, type EventType } from "./events.ts";
++import { isCandId } from "./ids.ts";
++import { reduce } from "./reducer.ts";
++import { GO_TIMEOUT_MS, stageLabel } from "./transitions.ts";
++import type { CandId, Pick, PickId, PickStatus } from "./types.ts";
++
++export type RunRole = "candidate" | "judge" | "graft" | "physical" | "fix";
++export type RunOutcome = "running" | "finished" | "errored" | "scored" | "pr_opened"
++  | "verified" | "not_verified" | "inconclusive" | "abandoned";
++
++export interface TimelineLink { kind: "agent" | "pr" | "commit"; label: string; href: string }
++
++export interface TimelineRun {
++  id: string;
++  label: string;
++  role: RunRole;
++  cand?: CandId;
++  attempt: number;
++  agentId?: string;
++  agentUrl: string | null;
++  startSeq: number;
++  endSeq: number | null;
++  startedAt: string;
++  endedAt: string | null;
++  durationMs: number;
++  durationText: string;
++  outcome: RunOutcome;
++}
++
++export interface TimelineEntry {
++  seq: number;
++  ts: string;
++  type: EventType;
++  by: string;
++  status: PickStatus;
++  stage: string;
++  title: string;
++  cand?: CandId;
++  run: { id: string; edge: "start" | "end" } | null;
++  sinceStartMs: number;
++  sinceStartText: string;
++  sincePrevMs: number;
++  links: TimelineLink[];
++}
++
++export interface StageSpan {
++  stage: string;
++  from: string;
++  to: string | null;
++  durationMs: number;
++  durationText: string;
++  firstSeq: number | null;
++  lastSeq: number | null;
++}
++
++export interface RunCounts {
++  total: number;
++  candidate: number;
++  judge: number;
++  graft: number;
++  physical: number;
++  fix: number;
++  relaunches: number;
++}
++
++export interface Timeline {
++  pickId: PickId;
++  status: PickStatus;
++  stage: string;
++  live: boolean;
++  startedAt: string;
++  endedAt: string | null;
++  elapsedMs: number;
++  elapsedText: string;
++  summary: string;
++  entries: TimelineEntry[];
++  runs: TimelineRun[];
++  stages: StageSpan[];
++  counts: RunCounts;
++}
++
++const AGENT_ID = /^bc-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
++const SHA = /^[0-9a-f]{40}$/;
++const TERMINAL: ReadonlySet<PickStatus> = new Set(["drafted", "failed", "cancelled"]);
++
++interface OpenRun {
++  id: string;
++  label: string;
++  role: RunRole;
++  cand?: CandId;
++  candKey?: string;
++  attempt: number;
++  agentId?: string;
++  agentUrl: string | null;
++  startSeq: number;
++  endSeq: number | null;
++  startedAt: string;
++  endedAt: string | null;
++  startMs: number;
++  durationMs: number;
++  durationText: string;
++  outcome: RunOutcome;
++}
++
++interface BuiltEntry extends TimelineEntry {
++  at: number;
++}
++
++export function formatDuration(ms: number): string {
++  if (!Number.isFinite(ms) || ms < 0) return "0s";
++  const seconds = Math.floor(ms / 1000);
++  if (seconds < 60) return `${seconds}s`;
++  const minutes = Math.floor(seconds / 60);
++  if (minutes < 60) return `${minutes}m`;
++  const hours = Math.floor(minutes / 60);
++  if (hours < 24) return `${hours}h ${String(minutes % 60).padStart(2, "0")}m`;
++  const days = Math.floor(hours / 24);
++  return `${days}d ${hours % 24}h`;
++}
++
++export function agentUrl(agentId: unknown): string | null {
++  if (typeof agentId !== "string" || !AGENT_ID.test(agentId)) return null;
++  return `https://cursor.com/agents/${agentId}`;
++}
++
++function finiteSpan(end: number, start: number): number {
++  const value = end - start;
++  return Number.isFinite(value) && value > 0 ? value : 0;
++}
++
++function iso(ms: number): string {
++  return new Date(ms).toISOString();
++}
++
++function parsedInstant(ts: string): number | null {
++  const value = Date.parse(ts);
++  return Number.isFinite(value) ? value : null;
++}
++
++function effectiveTimes(events: readonly DraftEvent[]): number[] {
++  const times: number[] = [];
++  let previous = 0;
++  events.forEach((event, index) => {
++    const parsed = parsedInstant(event.ts);
++    const time = index === 0 ? (parsed ?? 0) : parsed === null ? previous : Math.max(previous, parsed);
++    times.push(time);
++    previous = time;
++  });
++  return times;
++}
++
++function payloadNumber(payload: Record<string, unknown>, key: string): number | undefined {
++  const value = payload[key];
++  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
++}
++
++function text(value: unknown): string | undefined {
++  return typeof value === "string" && value.length > 0 ? value : undefined;
++}
++
++function record(value: unknown): Record<string, unknown> | undefined {
++  return value !== null && typeof value === "object" && !Array.isArray(value)
++    ? value as Record<string, unknown>
++    : undefined;
++}
++
++function earliest(runs: readonly OpenRun[], pred: (run: OpenRun) => boolean): OpenRun | undefined {
++  return runs.filter((run) => run.outcome === "running" && pred(run)).sort((a, b) => a.startSeq - b.startSeq)[0];
++}
++
++function seal(run: OpenRun, endMs: number, outcome: RunOutcome, endSeq: number | null): void {
++  run.outcome = outcome;
++  run.endSeq = endSeq;
++  run.endedAt = iso(endMs);
++  run.durationMs = finiteSpan(endMs, run.startMs);
++  run.durationText = formatDuration(run.durationMs);
++}
++
++function verdictOutcome(verdict: string | undefined): RunOutcome {
++  if (verdict === "VERIFIED") return "verified";
++  if (verdict === "NOT_VERIFIED") return "not_verified";
++  if (verdict === "INCONCLUSIVE") return "inconclusive";
++  return "finished";
++}
++
++function verdictText(after: Pick | null, event: DraftEvent): string | undefined {
++  const fromPick = text(after?.physical?.verdict);
++  if (fromPick) return fromPick;
++  return text(record(event.payload.physical)?.verdict);
++}
++
++function openRun(event: DraftEvent, at: number, before: Pick | null, after: Pick, runs: readonly OpenRun[]): OpenRun | null {
++  if (after.runs <= (before?.runs ?? 0)) return null;
++  const payload = event.payload;
++  const base = {
++    agentUrl: null as string | null,
++    startSeq: event.seq,
++    endSeq: null,
++    startedAt: iso(at),
++    endedAt: null,
++    startMs: at,
++    durationMs: 0,
++    durationText: formatDuration(0),
++    outcome: "running" as RunOutcome,
++  };
++  if (event.type === "candidate_launched") {
++    const candKey = text(payload.cand);
++    const prior = runs.filter((run) => run.role === "candidate" && run.candKey === candKey).length;
++    const attempt = payloadNumber(payload, "attempt") ?? prior + 1;
++    const agentId = text(payload.agentId);
++    const run: OpenRun = {
++      ...base,
++      id: `${candKey ?? "candidate"}#${attempt}`,
++      label: candKey ? `${candKey} attempt ${attempt}` : `attempt ${attempt}`,
++      role: "candidate",
++      candKey,
++      attempt,
++      agentUrl: agentUrl(agentId),
++    };
++    if (candKey && isCandId(candKey)) run.cand = candKey;
++    if (agentId) run.agentId = agentId;
++    return run;
++  }
++  if (event.type === "judge_launched") {
++    const prior = runs.filter((run) => run.role === "judge").length;
++    const pass = payloadNumber(payload, "pass") ?? prior + 1;
++    const agentId = text(payload.agentId);
++    const run: OpenRun = {
++      ...base,
++      id: `judge#${pass}`,
++      label: `Film Room pass ${pass}`,
++      role: "judge",
++      attempt: pass,
++      agentUrl: agentUrl(agentId),
++    };
++    if (agentId) run.agentId = agentId;
++    return run;
++  }
++  if (event.type === "graft_launched") {
++    const agentId = text(payload.agentId);
++    const run: OpenRun = {
++      ...base,
++      id: "graft#1",
++      label: "Trade",
++      role: "graft",
++      attempt: 1,
++      agentUrl: agentUrl(agentId),
++    };
++    if (agentId) run.agentId = agentId;
++    return run;
++  }
++  if (event.type === "physical_launched") {
++    const agentId = text(payload.agentId);
++    const run: OpenRun = {
++      ...base,
++      id: "physical#1",
++      label: "Physical",
++      role: "physical",
++      attempt: 1,
++      agentUrl: agentUrl(agentId),
++    };
++    if (agentId) run.agentId = agentId;
++    return run;
++  }
++  if (event.type === "fix_requested") {
++    const prior = runs.filter((run) => run.role === "fix").length;
++    const loop = payloadNumber(payload, "loop") ?? prior + 1;
++    const agentId = text(payload.agentId);
++    const run: OpenRun = {
++      ...base,
++      id: `fix#${loop}`,
++      label: `Fix loop ${loop}`,
++      role: "fix",
++      attempt: loop,
++      agentUrl: agentUrl(agentId),
++    };
++    if (agentId) run.agentId = agentId;
++    return run;
++  }
++  return null;
++}
++
++function closeRun(event: DraftEvent, runs: readonly OpenRun[], after: Pick | null): OpenRun | null {
++  if (event.type === "candidate_finished" || event.type === "candidate_failed") {
++    const candKey = text(event.payload.cand);
++    const run = earliest(runs, (item) => item.role === "candidate" && item.candKey === candKey);
++    return run ?? null;
++  }
++  if (event.type === "judgement_recorded") {
++    const pass = payloadNumber(event.payload, "pass");
++    if (pass !== undefined) return earliest(runs, (item) => item.role === "judge" && item.attempt === pass) ?? null;
++    return earliest(runs, (item) => item.role === "judge") ?? null;
++  }
++  if (event.type === "graft_recorded") return earliest(runs, (item) => item.role === "graft") ?? null;
++  if (event.type === "verdict_recorded") {
++    return earliest(runs, (item) => item.role === "physical" || item.role === "fix") ?? null;
++  }
++  void after;
++  return null;
++}
++
++function closeOutcome(event: DraftEvent, after: Pick | null): RunOutcome {
++  if (event.type === "candidate_failed") return "errored";
++  if (event.type === "candidate_finished") return "finished";
++  if (event.type === "judgement_recorded") return "scored";
++  if (event.type === "graft_recorded") return "pr_opened";
++  if (event.type === "verdict_recorded") return verdictOutcome(verdictText(after, event));
++  return "finished";
++}
++
++function movement(before: Pick | null, after: Pick | null): string | undefined {
++  if (!after) return undefined;
++  const next = stageLabel(after.status);
++  if (!before) return `The pick is in ${next}`;
++  const prev = stageLabel(before.status);
++  if (prev === next) return undefined;
++  return `The stage changed from ${prev} to ${next}`;
++}
++
++function oneSentence(body: string, before: Pick | null, after: Pick | null): string {
++  const move = movement(before, after);
++  const stem = body.endsWith(".") ? body.slice(0, -1) : body;
++  if (!move) return body.endsWith(".") ? body : `${body}.`;
++  return `${stem}, and ${move.charAt(0).toLowerCase()}${move.slice(1)}.`;
++}
++
++function acceptanceCount(after: Pick | null): number | undefined {
++  const acceptance = (after?.report as { acceptance?: unknown } | undefined)?.acceptance;
++  return Array.isArray(acceptance) ? acceptance.length : undefined;
++}
++
++function namedJudge(history: readonly DraftEvent[], payload: Record<string, unknown>): string | undefined {
++  const base = text(payload.base);
++  if (!base) return undefined;
++  if (isCandId(base)) return base;
++  const pass = payloadNumber(payload, "pass");
++  if (pass === undefined) return undefined;
++  const launch = history.find((event) => event.type === "judge_launched" && payloadNumber(event.payload, "pass") === pass);
++  const labels = record(launch?.payload.labels);
++  const cand = labels ? text(labels[base]) : undefined;
++  return cand && isCandId(cand) ? cand : undefined;
++}
++
++function testsAdded(after: Pick | null, event: DraftEvent, cand: string | undefined): number | undefined {
++  if (after && cand && isCandId(cand)) {
++    const added = after.candidates.find((item) => item.id === cand)?.report?.tests?.added;
++    if (typeof added === "number" && Number.isFinite(added)) return added;
++  }
++  const tests = record(record(event.payload.report)?.tests);
++  const added = tests?.added;
++  return typeof added === "number" && Number.isFinite(added) ? added : undefined;
++}
++
++function headSha(after: Pick | null, event: DraftEvent, cand: string | undefined): string | undefined {
++  if (after && cand && isCandId(cand)) {
++    const sha = text(after.candidates.find((item) => item.id === cand)?.report?.headSha);
++    if (sha) return sha;
++  }
++  return text(record(event.payload.report)?.headSha);
++}
++
++function titleFor(
++  event: DraftEvent,
++  before: Pick | null,
++  after: Pick | null,
++  history: readonly DraftEvent[],
++  opened: OpenRun | null,
++  closed: OpenRun | null,
++): string {
++  if (!isEventType(event.type)) return "Unrecognized event";
++  const payload = event.payload;
++  const duration = closed?.durationText;
++  let body = "";
++  switch (event.type) {
++    case "pick_created": {
++      const source = text(payload.source);
++      body = source ? `Pick created from ${source}` : "Pick created";
++      break;
++    }
++    case "scouting_report_written": {
++      const count = acceptanceCount(after);
++      body = count === undefined ? "Scouting report recorded" : `Scouting report lists ${count} acceptance criteria`;
++      break;
++    }
++    case "scouting_approved":
++      body = "The scouting report was approved";
++      break;
++    case "candidate_launched": {
++      const cand = opened?.candKey ?? text(payload.cand);
++      const attempt = opened?.attempt ?? payloadNumber(payload, "attempt") ?? 1;
++      if (!cand) body = attempt >= 2 ? `Attempt ${attempt} relaunched` : "A candidate launched";
++      else body = attempt >= 2 ? `${cand} relaunched for attempt ${attempt}` : `${cand} launched`;
++      break;
++    }
++    case "candidate_finished": {
++      const cand = text(payload.cand);
++      const sha = headSha(after, event, cand);
++      const short = sha && SHA.test(sha) ? sha.slice(0, 7) : undefined;
++      const tests = testsAdded(after, event, cand);
++      const who = cand ? `${cand} finished` : "A candidate finished";
++      body = duration ? `${who} in ${duration}` : who;
++      if (tests !== undefined) body += ` with ${tests} tests`;
++      if (short) body += ` at ${short}`;
++      break;
++    }
++    case "candidate_failed": {
++      const cand = text(payload.cand);
++      const who = cand ? `${cand} errored` : "A candidate errored";
++      body = duration ? `${who} after ${duration}` : who;
++      break;
++    }
++    case "candidate_dropped": {
++      const cand = text(payload.cand);
++      body = cand ? `${cand} dropped` : "A candidate dropped";
++      break;
++    }
++    case "judge_launched": {
++      const pass = opened?.attempt ?? payloadNumber(payload, "pass");
++      const reversed = payload.reversed === true;
++      if (pass === undefined) body = reversed ? "The order was reversed" : "The judge started";
++      else body = reversed
++        ? `Film Room pass ${pass} started with the order reversed`
++        : `Film Room pass ${pass} started`;
++      break;
++    }
++    case "judgement_recorded": {
++      const pass = payloadNumber(payload, "pass");
++      const cards = Array.isArray(payload.cards) ? payload.cards.length : undefined;
++      const named = namedJudge(history, payload);
++      body = pass === undefined ? "The judge scored" : `Film Room pass ${pass} scored`;
++      if (cards !== undefined) body += ` ${cards} cards`;
++      if (named) body += ` and the judge named ${named}`;
++      break;
++    }
++    case "graft_launched":
++      body = "Trade started";
++      break;
++    case "graft_recorded": {
++      const pr = payloadNumber(payload, "prNumber");
++      body = pr !== undefined && pr > 0 ? `Trade opened pull request #${pr}` : "Trade opened a pull request";
++      break;
++    }
++    case "physical_launched": {
++      const walkover = payload.walkover === true || after?.walkover === true;
++      body = walkover ? "Physical started as a walkover" : "Physical started";
++      break;
++    }
++    case "verdict_recorded": {
++      const verdict = verdictText(after, event);
++      if (verdict && duration) body = `The verdict was ${verdict} after ${duration}`;
++      else if (verdict) body = `The verdict was ${verdict}`;
++      else if (duration) body = `The verdict arrived after ${duration}`;
++      else body = "The verdict arrived";
++      break;
++    }
++    case "fix_requested": {
++      const loop = opened?.attempt ?? payloadNumber(payload, "loop");
++      body = loop === undefined ? `Fix loop of ${MAX_FIX_LOOPS} started` : `Fix loop ${loop} of ${MAX_FIX_LOOPS} started`;
++      break;
++    }
++    case "draft_pr_confirmed": {
++      const pr = payloadNumber(payload, "prNumber");
++      body = pr !== undefined && pr > 0 ? `Pull request #${pr} is confirmed as a draft` : "The pull request is confirmed as a draft";
++      break;
++    }
++    case "pick_failed": {
++      const reason = text(payload.reason);
++      body = reason ? `The pick failed (${reason})` : "The pick failed";
++      break;
++    }
++    case "pick_cancelled":
++      body = "Cancelled";
++      break;
++    case "lesson_recorded": {
++      const topic = text(payload.topic);
++      const lesson = text(payload.text);
++      if (topic && lesson) body = `Lesson on ${topic}: ${lesson}`;
++      else if (topic) body = `Lesson on ${topic}`;
++      else if (lesson) body = `Lesson: ${lesson}`;
++      else body = "A lesson was recorded";
++      break;
++    }
++    default:
++      body = "Unrecognized event";
++  }
++  return oneSentence(body, before, after);
++}
++
++function positiveInt(value: unknown): number | undefined {
++  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : undefined;
++}
++
++function prLink(target: string, value: unknown): TimelineLink | null {
++  const n = positiveInt(value);
++  if (n === undefined) return null;
++  return { kind: "pr", label: `PR #${n}`, href: `https://github.com/${target}/pull/${n}` };
++}
++
++function commitLink(target: string, value: unknown): TimelineLink | null {
++  if (typeof value !== "string" || !SHA.test(value)) return null;
++  return { kind: "commit", label: value.slice(0, 7), href: `https://github.com/${target}/commit/${value}` };
++}
++
++function linksFor(event: DraftEvent, target: string, opened: OpenRun | null, after: Pick | null): TimelineLink[] {
++  const links: TimelineLink[] = [];
++  if (opened?.agentUrl) links.push({ kind: "agent", label: `Agent ${opened.label}`, href: opened.agentUrl });
++  if (event.type === "graft_recorded" || event.type === "draft_pr_confirmed") {
++    const link = prLink(target, event.payload.prNumber);
++    if (link) links.push(link);
++  }
++  if (event.type === "verdict_recorded") {
++    const link = prLink(target, record(event.payload.physical)?.prNumber);
++    if (link) links.push(link);
++  }
++  if (event.type === "candidate_finished") {
++    const link = commitLink(target, headSha(after, event, text(event.payload.cand)));
++    if (link) links.push(link);
++  }
++  if (event.type === "graft_recorded") {
++    const link = commitLink(target, event.payload.headSha);
++    if (link) links.push(link);
++  }
++  if (event.type === "verdict_recorded") {
++    const link = commitLink(target, record(event.payload.physical)?.headSha);
++    if (link) links.push(link);
++  }
++  return links;
++}
++
++function publishRun(run: OpenRun): TimelineRun {
++  const published: TimelineRun = {
++    id: run.id,
++    label: run.label,
++    role: run.role,
++    attempt: run.attempt,
++    agentUrl: run.agentUrl,
++    startSeq: run.startSeq,
++    endSeq: run.endSeq,
++    startedAt: run.startedAt,
++    endedAt: run.endedAt,
++    durationMs: run.durationMs,
++    durationText: formatDuration(run.durationMs),
++    outcome: run.outcome,
++  };
++  if (run.cand) published.cand = run.cand;
++  if (run.agentId) published.agentId = run.agentId;
++  return published;
++}
++
++function buildStages(entries: readonly BuiltEntry[], final: Pick, live: boolean, endedAtMs: number | null, now: number): StageSpan[] {
++  if (entries.length === 0) return [];
++  const groups: { stage: string; entries: BuiltEntry[] }[] = [];
++  for (const entry of entries) {
++    const last = groups[groups.length - 1];
++    if (!last || last.stage !== entry.stage) groups.push({ stage: entry.stage, entries: [entry] });
++    else last.entries.push(entry);
++  }
++  const spans: StageSpan[] = groups.map((group, index) => {
++    const fromMs = group.entries[0]!.at;
++    const next = groups[index + 1];
++    const toMs = next ? next.entries[0]!.at : null;
++    const durationMs = toMs === null ? 0 : finiteSpan(toMs, fromMs);
++    return {
++      stage: group.stage,
++      from: iso(fromMs),
++      to: toMs === null ? null : iso(toMs),
++      durationMs,
++      durationText: formatDuration(durationMs),
++      firstSeq: group.entries[0]!.seq,
++      lastSeq: group.entries[group.entries.length - 1]!.seq,
++    };
++  });
++  const last = spans[spans.length - 1]!;
++  const finalStage = stageLabel(final.status);
++  if (finalStage !== last.stage && endedAtMs !== null) {
++    const fromMs = entries.find((entry) => entry.stage === last.stage && entry.seq === last.firstSeq)?.at
++      ?? entries[entries.length - 1]!.at;
++    const durationMs = finiteSpan(endedAtMs, fromMs);
++    last.to = iso(endedAtMs);
++    last.durationMs = durationMs;
++    last.durationText = formatDuration(durationMs);
++    spans.push({
++      stage: finalStage,
++      from: iso(endedAtMs),
++      to: null,
++      durationMs: 0,
++      durationText: formatDuration(0),
++      firstSeq: null,
++      lastSeq: null,
++    });
++    return spans;
++  }
++  if (last.to === null) {
++    if (live) {
++      const fromMs = Date.parse(last.from);
++      const durationMs = finiteSpan(now, fromMs);
++      last.durationMs = durationMs;
++      last.durationText = formatDuration(durationMs);
++    } else {
++      last.durationMs = 0;
++      last.durationText = formatDuration(0);
++    }
++  }
++  return spans;
++}
++
++export function timeline(events: readonly DraftEvent[], now: number): Timeline | null {
++  if (events.length === 0) return null;
++  const ordered = [...events].sort((a, b) => a.seq - b.seq);
++  const clockNow = Number.isFinite(now) ? now : 0;
++  const final = reduce(ordered, clockNow);
++  if (!final) return null;
++  const times = effectiveTimes(ordered);
++  const runs: OpenRun[] = [];
++  const entries: BuiltEntry[] = [];
++  let before: Pick | null = null;
++  for (let index = 0; index < ordered.length; index += 1) {
++    const event = ordered[index]!;
++    const at = times[index]!;
++    const prefix = ordered.slice(0, index + 1);
++    const after = reduce(prefix, at);
++    const history = ordered.slice(0, index);
++    const opened = after ? openRun(event, at, before, after, runs) : null;
++    if (opened) runs.push(opened);
++    const closed = opened ? null : closeRun(event, runs, after);
++    if (closed) seal(closed, at, closeOutcome(event, after), event.seq);
++    const status = after?.status ?? before?.status ?? "intake";
++    const sinceStartMs = finiteSpan(at, times[0] ?? at);
++    const sincePrevMs = index === 0 ? 0 : finiteSpan(at, times[index - 1] ?? at);
++    const cand = text(event.payload.cand);
++    const entry: BuiltEntry = {
++      seq: event.seq,
++      ts: event.ts,
++      type: isEventType(event.type) ? event.type : "lesson_recorded",
++      by: event.by,
++      status,
++      stage: stageLabel(status),
++      title: titleFor(event, before, after, history, opened, closed),
++      sinceStartMs,
++      sinceStartText: formatDuration(sinceStartMs),
++      sincePrevMs,
++      run: opened ? { id: opened.id, edge: "start" } : closed ? { id: closed.id, edge: "end" } : null,
++      links: linksFor(event, final.target, opened, after),
++      at,
++    };
++    if (!isEventType(event.type)) entry.type = event.type as EventType;
++    if (cand && isCandId(cand)) entry.cand = cand;
++    else if (event.type === "judgement_recorded") {
++      const named = namedJudge(history, event.payload);
++      if (named && isCandId(named)) entry.cand = named;
++    }
++    entries.push(entry);
++    if (after) before = after;
++  }
++
++  const live = !TERMINAL.has(final.status);
++  const terminalEntry = entries.find((entry) => TERMINAL.has(entry.status));
++  let endedAtMs: number | null = null;
++  if (!live) {
++    if (terminalEntry) endedAtMs = terminalEntry.at;
++    else if (final.reportAt) {
++      const reportMs = Date.parse(final.reportAt);
++      if (Number.isFinite(reportMs)) endedAtMs = reportMs + GO_TIMEOUT_MS;
++    }
++  }
++  for (const run of runs) {
++    if (run.outcome !== "running") continue;
++    if (!live && endedAtMs !== null) seal(run, endedAtMs, "abandoned", null);
++    else {
++      run.endedAt = null;
++      run.endSeq = null;
++      run.outcome = "running";
++      run.durationMs = finiteSpan(clockNow, run.startMs);
++      run.durationText = formatDuration(run.durationMs);
++    }
++  }
++  const startedAtMs = times[0] ?? 0;
++  const elapsedMs = finiteSpan(live ? clockNow : (endedAtMs ?? startedAtMs), startedAtMs);
++  const counts: RunCounts = {
++    total: runs.length,
++    candidate: runs.filter((run) => run.role === "candidate").length,
++    judge: runs.filter((run) => run.role === "judge").length,
++    graft: runs.filter((run) => run.role === "graft").length,
++    physical: runs.filter((run) => run.role === "physical").length,
++    fix: runs.filter((run) => run.role === "fix").length,
++    relaunches: runs.filter((run) => run.role === "candidate" && run.attempt >= 2).length,
++  };
++  const elapsedText = formatDuration(elapsedMs);
++  const runWord = counts.total === 1 ? "run" : "runs";
++  const publishedEntries: TimelineEntry[] = entries.map((entry) => {
++    const { at: _at, ...publicEntry } = entry;
++    void _at;
++    return publicEntry;
++  });
++  return {
++    pickId: final.id,
++    status: final.status,
++    stage: stageLabel(final.status),
++    live,
++    startedAt: iso(startedAtMs),
++    endedAt: endedAtMs === null ? null : iso(endedAtMs),
++    elapsedMs,
++    elapsedText,
++    summary: `${final.status} · ${elapsedText} · ${counts.total} ${runWord}`,
++    entries: publishedEntries,
++    runs: runs.map(publishRun),
++    stages: buildStages(entries, final, live, endedAtMs, clockNow),
++    counts,
++  };
++}
+diff --git a/src/server/http.ts b/src/server/http.ts
+index fb59d93..b0b320a 100644
+--- a/src/server/http.ts
++++ b/src/server/http.ts
+@@ -12,6 +12,7 @@ import {
+   reduce,
+   screenIdea,
+   stageLabel,
++  timeline,
+   type Config,
+   type Pick,
+ } from "../core/index.ts";
+@@ -55,35 +56,7 @@ async function readBody(req: IncomingMessage): Promise<string> {
+   return Buffer.concat(chunks).toString("utf8");
+ }
+ 
+-function summarizeEvent(event: DraftEvent): { seq: number; ts: string; type: string; by: string; summary: string } {
+-  const cand = typeof event.payload.cand === "string" ? event.payload.cand : "";
+-  const reason = typeof event.payload.reason === "string" ? event.payload.reason : "";
+-  let summary: string = event.type;
+-  if (event.type === "pick_created") summary = "Pick created";
+-  if (event.type === "scouting_report_written") summary = "Scouting report written";
+-  if (event.type === "scouting_approved") summary = "Scouting approved";
+-  if (event.type === "candidate_launched") summary = `Launched ${cand}`;
+-  if (event.type === "candidate_finished") summary = `${cand} finished`;
+-  if (event.type === "candidate_failed") summary = `${cand} errored`;
+-  if (event.type === "candidate_dropped") summary = `${cand} dropped`;
+-  if (event.type === "judge_launched") summary = `Film Room pass ${String(event.payload.pass ?? "")}`;
+-  if (event.type === "judgement_recorded") summary = "Scorecard recorded";
+-  if (event.type === "graft_launched") summary = "Trade started";
+-  if (event.type === "graft_recorded") summary = `Draft PR #${String(event.payload.prNumber ?? "")}`;
+-  if (event.type === "physical_launched") summary = event.payload.walkover === true ? "Physical started (walkover)" : "Physical started";
+-  if (event.type === "verdict_recorded") {
+-    const physical = event.payload.physical as { verdict?: string } | undefined;
+-    summary = `Verdict ${physical?.verdict ?? ""}`;
+-  }
+-  if (event.type === "fix_requested") summary = `Fix ${String(event.payload.loop ?? "")} requested`;
+-  if (event.type === "draft_pr_confirmed") summary = "Draft PR confirmed";
+-  if (event.type === "pick_failed") summary = `Failed (${reason})`;
+-  if (event.type === "pick_cancelled") summary = "Cancelled";
+-  if (event.type === "lesson_recorded") summary = `Lesson: ${String(event.payload.topic ?? "")}`;
+-  return { seq: event.seq, ts: event.ts, type: event.type, by: event.by, summary };
+-}
+-
+-function pickView(pick: Pick, events: DraftEvent[]) {
++function pickView(pick: Pick, events: DraftEvent[], now: number) {
+   return {
+     id: pick.id,
+     idea: pick.idea,
+@@ -107,7 +80,7 @@ function pickView(pick: Pick, events: DraftEvent[]) {
+     walkover: pick.walkover,
+     fixLoops: pick.fixLoops,
+     lessons: pick.lessons,
+-    events: events.map(summarizeEvent),
++    timeline: timeline(events, now),
+   };
+ }
+ 
+@@ -209,13 +182,14 @@ export async function startServer(options: ServerOptions): Promise<{
+         send(res, 404, { error: "pick not found" });
+         return;
+       }
++      const now = Date.now();
+       const events = await readEvents(options.dataDir, id);
+-      const pick = reduce(events, Date.now());
++      const pick = reduce(events, now);
+       if (!pick) {
+         send(res, 404, { error: "pick not found" });
+         return;
+       }
+-      send(res, 200, pickView(pick, events));
++      send(res, 200, pickView(pick, events, now));
+       return;
+     }
+ 
+@@ -277,7 +251,8 @@ export async function startServer(options: ServerOptions): Promise<{
+       return;
+     }
+ 
+-    if (req.method === "GET" && (path === "/" || path === "/index.html" || path === "/app.js" || path === "/styles.css")) {
++    const files = ["/", "/index.html", "/app.js", "/styles.css", "/timeline.js", "/timeline.css"];
++    if (req.method === "GET" && files.includes(path)) {
+       const file = path === "/" || path === "/index.html" ? "index.html" : path.slice(1);
+       const full = normalize(join(UI_DIR, file));
+       if (!full.startsWith(UI_DIR)) {
+diff --git a/src/ui/app.js b/src/ui/app.js
+index 66488bf..753ee68 100644
+--- a/src/ui/app.js
++++ b/src/ui/app.js
+@@ -163,9 +163,7 @@ function pickView(pick) {
+     physicalBits.push(el("p", { class: "empty" }, ["Physical has not run."]));
+   }
+ 
+-  const log = pick.events?.length
+-    ? pick.events.map((event) => el("li", {}, [`${event.ts} ${event.summary}`]))
+-    : [el("li", { class: "empty" }, ["No events."])];
++  const log = globalThis.draftDayTimeline(pick.timeline);
+ 
+   const swap = pick.judgement
+     ? `Base ${pick.judgement.base}. swapConsistent ${String(pick.judgement.swapConsistent)}.`
+@@ -196,7 +194,7 @@ function pickView(pick) {
+     ]),
+     section("Trades", [el("ul", {}, trades)]),
+     section("Physical", physicalBits),
+-    section("Decision log", [el("ol", { class: "events" }, log)]),
++    section("Decision log", [log]),
+   ]);
+ }
+ 
+diff --git a/src/ui/index.html b/src/ui/index.html
+index 556c8e1..3f01087 100644
+--- a/src/ui/index.html
++++ b/src/ui/index.html
+@@ -5,6 +5,7 @@
+   <meta name="viewport" content="width=device-width, initial-scale=1">
+   <title>Draft Day War Room</title>
+   <link rel="stylesheet" href="/styles.css">
++  <link rel="stylesheet" href="/timeline.css">
+ </head>
+ <body>
+   <header class="top">
+@@ -13,6 +14,7 @@ <h1>War Room</h1>
+     <p class="lede">Idea in. Verified draft pull request out. Nothing merges from here.</p>
+   </header>
+   <main id="app"></main>
++  <script src="/timeline.js"></script>
+   <script src="/app.js"></script>
+ </body>
+ </html>
+diff --git a/src/ui/timeline.css b/src/ui/timeline.css
+new file mode 100644
+index 0000000..dc2045b
+--- /dev/null
++++ b/src/ui/timeline.css
+@@ -0,0 +1,78 @@
++.dd-log {
++  display: flex;
++  flex-direction: column;
++  gap: 16px;
++  max-width: 100%;
++  min-width: 0;
++}
++
++.dd-summary {
++  margin: 0;
++  font: 600 1.05rem/1.35 ui-sans-serif, system-ui, sans-serif;
++}
++
++.dd-block h3 {
++  margin: 0 0 8px;
++  font: 600 13px/1.2 ui-sans-serif, system-ui, sans-serif;
++  letter-spacing: 0.04em;
++  color: var(--gold);
++}
++
++.dd-stages {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 6px;
++  margin: 0;
++  padding: 0;
++  list-style: none;
++}
++
++.dd-stages li {
++  max-width: 100%;
++  border: 1px solid var(--line);
++  border-radius: 999px;
++  padding: 4px 10px;
++  background: #141b12;
++  font: 14px/1.3 ui-sans-serif, system-ui, sans-serif;
++}
++
++.dd-runs-scroll {
++  max-width: 100%;
++  overflow-x: auto;
++}
++
++.dd-runs-scroll table {
++  width: max-content;
++  min-width: 100%;
++}
++
++.dd-runs-scroll th,
++.dd-runs-scroll td {
++  white-space: nowrap;
++}
++
++.dd-events,
++.dd-stage-events {
++  margin: 0;
++  padding-left: 1.1em;
++}
++
++.dd-stage-name {
++  margin: 0 0 4px;
++  font-size: 1rem;
++}
++
++.dd-event {
++  margin: 0.45em 0;
++  overflow-wrap: anywhere;
++}
++
++.dd-when {
++  font: 600 0.95rem/1.4 ui-sans-serif, system-ui, sans-serif;
++  color: var(--gold);
++}
++
++.dd-event a {
++  margin-left: 0.35em;
++  font-family: ui-sans-serif, system-ui, sans-serif;
++}
+diff --git a/src/ui/timeline.js b/src/ui/timeline.js
+new file mode 100644
+index 0000000..621311b
+--- /dev/null
++++ b/src/ui/timeline.js
+@@ -0,0 +1,94 @@
++function el(tag, attrs, children) {
++  const node = document.createElement(tag);
++  for (const [key, value] of Object.entries(attrs || {})) {
++    if (value === undefined || value === null) continue;
++    if (key === "class") node.className = value;
++    else node.setAttribute(key, String(value));
++  }
++  for (const child of children || []) {
++    node.append(child instanceof Node ? child : document.createTextNode(String(child)));
++  }
++  return node;
++}
++
++function startedClock(iso) {
++  const date = new Date(iso);
++  if (Number.isNaN(date.getTime())) return "";
++  return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
++}
++
++function agentCell(run) {
++  if (run.agentUrl) {
++    return el("a", {
++      href: run.agentUrl,
++      target: "_blank",
++      rel: "noopener noreferrer",
++    }, [`Agent ${run.label}`]);
++  }
++  return run.agentId || "";
++}
++
++function stageGroups(entries) {
++  const groups = [];
++  for (const entry of entries) {
++    const last = groups[groups.length - 1];
++    if (!last || last.stage !== entry.stage) groups.push({ stage: entry.stage, entries: [entry] });
++    else last.entries.push(entry);
++  }
++  return groups;
++}
++
++function eventItem(entry) {
++  const children = [el("span", { class: "dd-when" }, [`+${entry.sinceStartText}`]), ` ${entry.title}`];
++  for (const link of entry.links || []) {
++    children.push(" ");
++    children.push(el("a", {
++      href: link.href,
++      target: "_blank",
++      rel: "noopener noreferrer",
++    }, [link.label]));
++  }
++  return el("li", { class: "dd-event" }, children);
++}
++
++function draftDayTimeline(view) {
++  if (!view) return el("p", { class: "empty" }, ["No events."]);
++  const stageItems = (view.stages || []).map((span) => {
++    const terminal = !view.live && span.to === null;
++    return el("li", {}, [terminal ? span.stage : `${span.stage} ${span.durationText}`]);
++  });
++  const columns = ["Run", "Agent", "Started", "Duration", "Outcome"];
++  const rows = (view.runs || []).map((run) => el("tr", {}, [
++    el("td", {}, [run.label]),
++    el("td", {}, [agentCell(run)]),
++    el("td", {}, [startedClock(run.startedAt)]),
++    el("td", {}, [run.durationText]),
++    el("td", {}, [run.outcome]),
++  ]));
++  const events = stageGroups(view.entries || []).map((group) => el("li", {}, [
++    el("h3", { class: "dd-stage-name" }, [group.stage]),
++    el("ul", { class: "dd-stage-events" }, group.entries.map(eventItem)),
++  ]));
++  return el("div", { class: "dd-log" }, [
++    el("p", { class: "dd-summary" }, [view.summary]),
++    el("div", { class: "dd-block" }, [
++      el("h3", {}, ["Stages"]),
++      el("ul", { class: "dd-stages", "aria-label": "Stages" }, stageItems),
++    ]),
++    el("div", { class: "dd-block" }, [
++      el("h3", {}, ["Runs"]),
++      el("div", { class: "dd-runs-scroll" }, [
++        el("table", { "aria-label": "Runs" }, [
++          el("thead", {}, [el("tr", {}, columns.map((name) => el("th", { scope: "col" }, [name])))]),
++          el("tbody", {}, rows),
++        ]),
++      ]),
++    ]),
++    el("div", { class: "dd-block" }, [
++      el("h3", {}, ["Events"]),
++      el("ul", { class: "dd-events", "aria-label": "Events" }, events),
++    ]),
++  ]);
++}
++
++globalThis.draftDayTimeline = draftDayTimeline;
+diff --git a/test/fixtures/timeline/p-20261010-07.events.jsonl b/test/fixtures/timeline/p-20261010-07.events.jsonl
+new file mode 100644
+index 0000000..eed0778
+--- /dev/null
++++ b/test/fixtures/timeline/p-20261010-07.events.jsonl
+@@ -0,0 +1,23 @@
++{"seq":1,"ts":"2026-10-10T14:00:00.000Z","type":"pick_created","by":"dd","key":"pick","payload":{"id":"p-20261010-07","idea":"Show the pick timeline","source":"chat","target":"BoydVC/draft-day","n":3,"approval":"ask"}}
++{"seq":2,"ts":"2026-10-10T14:06:00.000Z","type":"scouting_report_written","by":"dd","key":"report","payload":{"report":{"restatement":"You want each pick to read like a game log.","acceptance":[{"id":"T1","when":"a pick page is open","shall":"show its decision log"},{"id":"T2","when":"a run ends","shall":"show how long it took"}],"rubric":[{"id":"facts","name":"Facts","weight":3,"howToGrade":"check the run table"},{"id":"clarity","name":"Clarity","weight":2,"howToGrade":"read it on a phone"},{"id":"tests","name":"Tests","weight":1,"howToGrade":"tests pass"}],"designSketch":"A decision log under the pick.","verifyPlan":["Open the sample pick."],"safetyFact":"Links only go to Cursor agents or this repo.","angles":["simplest thing that passes","extensibility first","tests first, then code"],"forbidden":["Do not merge."]}}}
++{"seq":3,"ts":"2026-10-10T14:20:00.000Z","type":"scouting_approved","by":"dd","key":"approved","payload":{"via":"human"}}
++{"seq":4,"ts":"2026-10-10T14:21:00.000Z","type":"candidate_launched","by":"dd","key":"launch:c1:1","payload":{"cand":"c1","attempt":1,"agentId":"bc-00000000-0000-4000-8000-000000000101","branch":"dd/p-20261010-07/c1"}}
++{"seq":5,"ts":"2026-10-10T14:21:00.000Z","type":"candidate_launched","by":"dd","key":"launch:c2:1","payload":{"cand":"c2","attempt":1,"agentId":"bc-00000000-0000-4000-8000-000000000201","branch":"dd/p-20261010-07/c2"}}
++{"seq":6,"ts":"2026-10-10T14:21:00.000Z","type":"candidate_launched","by":"dd","key":"launch:c3:1","payload":{"cand":"c3","attempt":1,"agentId":"bc-00000000-0000-4000-8000-000000000301","branch":"dd/p-20261010-07/c3"}}
++{"seq":7,"ts":"2026-10-10T14:30:00.000Z","type":"candidate_failed","by":"dd","key":"fail:c1:1","payload":{"cand":"c1","attempt":1}}
++{"seq":8,"ts":"2026-10-10T14:31:00.000Z","type":"candidate_launched","by":"dd","key":"launch:c1:2","payload":{"cand":"c1","attempt":2,"agentId":"bc-00000000-0000-4000-8000-000000000102","branch":"dd/p-20261010-07/c1"}}
++{"seq":9,"ts":"2026-10-10T15:13:00.000Z","type":"candidate_finished","by":"dd","key":"finish:c2:1","payload":{"cand":"c2","attempt":1,"report":{"branch":"dd/p-20261010-07/c2","headSha":"2222222222222222222222222222222222222222","summary":"c2 decision log","commands":[{"cmd":"npm test","exit":0}],"tests":{"added":6,"passing":true},"screenshots":["c2-timeline.png"],"risks":[]}}}
++{"seq":10,"ts":"2026-10-10T15:18:00.000Z","type":"candidate_finished","by":"dd","key":"finish:c1:2","payload":{"cand":"c1","attempt":2,"report":{"branch":"dd/p-20261010-07/c1","headSha":"1111111111111111111111111111111111111111","summary":"c1 decision log","commands":[{"cmd":"npm test","exit":0}],"tests":{"added":5,"passing":true},"screenshots":["c1-timeline.png"],"risks":[]}}}
++{"seq":11,"ts":"2026-10-10T15:31:00.000Z","type":"candidate_finished","by":"dd","key":"finish:c3:1","payload":{"cand":"c3","attempt":1,"report":{"branch":"dd/p-20261010-07/c3","headSha":"3333333333333333333333333333333333333333","summary":"c3 decision log","commands":[{"cmd":"npm test","exit":0}],"tests":{"added":9,"passing":true},"screenshots":["c3-timeline.png"],"risks":["one extra helper"]}}}
++{"seq":12,"ts":"2026-10-10T15:32:00.000Z","type":"judge_launched","by":"dd","key":"judge-launch:1","payload":{"pass":1,"order":["c3","c1","c2"],"labels":{"A":"c3","B":"c1","C":"c2"},"reversed":false,"agentId":"bc-00000000-0000-4000-8000-000000000401"}}
++{"seq":13,"ts":"2026-10-10T16:12:00.000Z","type":"judgement_recorded","by":"dd","key":"judgement:1","payload":{"pass":1,"order":["A","B","C"],"cards":[{"label":"A","gates":{"build":"pass","tests":"pass","journey":"pass"},"crossTests":{"passed":11,"total":12},"scores":[{"criterionId":"facts","score":3,"evidence":"A facts: npm test"},{"criterionId":"clarity","score":3,"evidence":"A clarity: npm test"},{"criterionId":"tests","score":3,"evidence":"A tests: npm test"}]},{"label":"B","gates":{"build":"pass","tests":"pass","journey":"pass"},"crossTests":{"passed":9,"total":12},"scores":[{"criterionId":"facts","score":2,"evidence":"B facts: npm test"},{"criterionId":"clarity","score":2,"evidence":"B clarity: npm test"},{"criterionId":"tests","score":2,"evidence":"B tests: npm test"}]},{"label":"C","gates":{"build":"pass","tests":"pass","journey":"pass"},"crossTests":{"passed":12,"total":12},"scores":[{"criterionId":"facts","score":3,"evidence":"C facts: npm test"},{"criterionId":"clarity","score":3,"evidence":"C clarity: npm test"},{"criterionId":"tests","score":4,"evidence":"C tests: npm test"}]}],"base":"C","runnerUps":["A","B"],"trades":[],"swapConsistent":null,"secondRead":"agree","note":""}}
++{"seq":14,"ts":"2026-10-10T16:13:00.000Z","type":"judge_launched","by":"dd","key":"judge-launch:2","payload":{"pass":2,"order":["c2","c1","c3"],"labels":{"A":"c2","B":"c1","C":"c3"},"reversed":true,"agentId":"bc-00000000-0000-4000-8000-000000000402"}}
++{"seq":15,"ts":"2026-10-10T16:48:00.000Z","type":"judgement_recorded","by":"dd","key":"judgement:2","payload":{"pass":2,"order":["A","B","C"],"cards":[{"label":"A","gates":{"build":"pass","tests":"pass","journey":"pass"},"crossTests":{"passed":12,"total":12},"scores":[{"criterionId":"facts","score":3,"evidence":"A facts: npm test"},{"criterionId":"clarity","score":4,"evidence":"A clarity: npm test"},{"criterionId":"tests","score":3,"evidence":"A tests: npm test"}]},{"label":"B","gates":{"build":"pass","tests":"pass","journey":"pass"},"crossTests":{"passed":9,"total":12},"scores":[{"criterionId":"facts","score":2,"evidence":"B facts: npm test"},{"criterionId":"clarity","score":2,"evidence":"B clarity: npm test"},{"criterionId":"tests","score":2,"evidence":"B tests: npm test"}]},{"label":"C","gates":{"build":"pass","tests":"pass","journey":"pass"},"crossTests":{"passed":11,"total":12},"scores":[{"criterionId":"facts","score":3,"evidence":"C facts: npm test"},{"criterionId":"clarity","score":3,"evidence":"C clarity: npm test"},{"criterionId":"tests","score":3,"evidence":"C tests: npm test"}]}],"base":"A","runnerUps":["C","B"],"trades":[{"from":"C","what":"stage strip","pointers":["src/ui/timeline.js:12-40"],"why":"reads well on a phone"}],"swapConsistent":null,"secondRead":"agree","note":""}}
++{"seq":16,"ts":"2026-10-10T16:50:00.000Z","type":"graft_launched","by":"dd","key":"graft-launch","payload":{"agentId":"bc-00000000-0000-4000-8000-000000000501"}}
++{"seq":17,"ts":"2026-10-10T17:45:00.000Z","type":"graft_recorded","by":"dd","key":"graft","payload":{"prNumber":42,"headSha":"4444444444444444444444444444444444444444","summary":"Base c2 plus one trade from c3"}}
++{"seq":18,"ts":"2026-10-10T17:46:00.000Z","type":"physical_launched","by":"dd","key":"physical-launch:1","payload":{"attempt":1,"walkover":false,"agentId":"bc-00000000-0000-4000-8000-000000000601"}}
++{"seq":19,"ts":"2026-10-10T18:16:00.000Z","type":"verdict_recorded","by":"dd","key":"verdict:1","payload":{"attempt":1,"headSha":"4444444444444444444444444444444444444444","physical":{"prNumber":42,"headSha":"4444444444444444444444444444444444444444","verdict":"NOT_VERIFIED","ledger":"verifier-failed","certainty":2,"evidence":["the Runs table had no relaunch row"],"fixLoops":0}}}
++{"seq":20,"ts":"2026-10-10T18:17:00.000Z","type":"fix_requested","by":"dd","key":"fix:1","payload":{"loop":1,"agentId":"bc-00000000-0000-4000-8000-000000000501"}}
++{"seq":21,"ts":"2026-10-10T18:42:00.000Z","type":"verdict_recorded","by":"dd","key":"verdict:2","payload":{"attempt":2,"headSha":"5555555555555555555555555555555555555555","physical":{"prNumber":42,"headSha":"5555555555555555555555555555555555555555","verdict":"VERIFIED","ledger":"live-ui-verified","certainty":4,"evidence":["timeline-drafted.png"],"fixLoops":1}}}
++{"seq":22,"ts":"2026-10-10T18:43:00.000Z","type":"draft_pr_confirmed","by":"dd","key":"pr:42","payload":{"prNumber":42}}
++{"seq":23,"ts":"2026-10-10T18:50:00.000Z","type":"lesson_recorded","by":"dd","key":"lesson:combine:c1 errored on its first launch; the relaunch finished in 47m","payload":{"topic":"combine","text":"c1 errored on its first launch; the relaunch finished in 47m"}}
+diff --git a/test/timeline.test.ts b/test/timeline.test.ts
+new file mode 100644
+index 0000000..f7b54a6
+--- /dev/null
++++ b/test/timeline.test.ts
+@@ -0,0 +1,674 @@
++import assert from "node:assert/strict";
++import { execFile } from "node:child_process";
++import { mkdtemp, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
++import { tmpdir } from "node:os";
++import { join } from "node:path";
++import { test } from "node:test";
++import { promisify } from "node:util";
++import {
++  agentUrl,
++  formatDuration,
++  reduce,
++  stageLabel,
++  timeline,
++  type DraftEvent,
++  type EventType,
++  type Timeline,
++} from "../src/core/index.ts";
++import { startServer } from "../src/server/http.ts";
++
++const exec = promisify(execFile);
++const root = process.cwd();
++const AFTER = Date.parse("2026-10-10T18:43:00.000Z");
++const LATER = Date.parse("2026-11-10T00:00:00.000Z");
++
++async function dd(args: string[]) {
++  try {
++    const { stdout, stderr } = await exec(process.execPath, ["--experimental-strip-types", "src/cli/dd.ts", ...args], {
++      cwd: root,
++      env: { ...process.env, NODE_NO_WARNINGS: "1" },
++    });
++    return { code: 0, stdout, stderr };
++  } catch (error) {
++    const err = error as { code?: number; stdout?: string; stderr?: string };
++    return { code: err.code ?? 1, stdout: err.stdout ?? "", stderr: err.stderr ?? "" };
++  }
++}
++
++async function loadSample(): Promise<DraftEvent[]> {
++  const text = await readFile(join(root, "test/fixtures/timeline/p-20261010-07.events.jsonl"), "utf8");
++  return text.split("\n").filter((line) => line.trim()).map((line) => JSON.parse(line) as DraftEvent);
++}
++
++function clock(events: readonly DraftEvent[]): number[] {
++  const times: number[] = [];
++  let previous = 0;
++  events.forEach((event, index) => {
++    const parsed = Date.parse(event.ts);
++    const finite = Number.isFinite(parsed) ? parsed : null;
++    const time = index === 0 ? (finite ?? 0) : finite === null ? previous : Math.max(previous, finite);
++    times.push(time);
++    previous = time;
++  });
++  return times;
++}
++
++function ev(seq: number, ts: string, type: EventType, payload: Record<string, unknown>): DraftEvent {
++  return { seq, ts, type, by: "test", key: `${type}:${seq}`, payload };
++}
++
++function created(seq = 1, ts = "2026-10-16T10:00:00.000Z"): DraftEvent {
++  return ev(seq, ts, "pick_created", {
++    id: "p-20261016-04",
++    idea: "Show a timeline",
++    source: "chat",
++    target: "BoydVC/draft-day",
++    n: 3,
++    approval: "ask",
++  });
++}
++
++function assertAgrees(events: readonly DraftEvent[], now: number): Timeline {
++  const pick = reduce(events, now);
++  const view = timeline(events, now);
++  assert.ok(pick);
++  assert.ok(view);
++  assert.equal(view.counts.total, pick.runs);
++  return view;
++}
++
++function stringsIn(value: unknown, out: string[] = []): string[] {
++  if (typeof value === "string") out.push(value);
++  else if (Array.isArray(value)) for (const item of value) stringsIn(item, out);
++  else if (value && typeof value === "object") for (const item of Object.values(value)) stringsIn(item, out);
++  return out;
++}
++
++function hrefOk(href: string, target: string): boolean {
++  const escaped = target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
++  return /^https:\/\/cursor\.com\/agents\/bc-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(href)
++    || new RegExp(`^https://github\\.com/${escaped}/pull/[1-9]\\d*$`).test(href)
++    || new RegExp(`^https://github\\.com/${escaped}/commit/[0-9a-f]{40}$`).test(href);
++}
++
++test("T1 formatDuration table", () => {
++  const rows: Array<[number, string]> = [
++    [0, "0s"],
++    [999, "0s"],
++    [-5, "0s"],
++    [Number.NaN, "0s"],
++    [Number.POSITIVE_INFINITY, "0s"],
++    [59_999, "59s"],
++    [60_000, "1m"],
++    [3_599_999, "59m"],
++    [3_600_000, "1h 00m"],
++    [3_900_000, "1h 05m"],
++    [86_399_999, "23h 59m"],
++    [86_400_000, "1d 0h"],
++    [90_000_000, "1d 1h"],
++  ];
++  for (const [ms, text] of rows) assert.equal(formatDuration(ms), text, String(ms));
++});
++
++test("T2 sample runs", async () => {
++  const events = await loadSample();
++  const view = assertAgrees(events, LATER);
++  const expected = [
++    { id: "c1#1", label: "c1 attempt 1", outcome: "errored", durationText: "9m", startSeq: 4, endSeq: 7, agentId: "bc-00000000-0000-4000-8000-000000000101" },
++    { id: "c2#1", label: "c2 attempt 1", outcome: "finished", durationText: "52m", startSeq: 5, endSeq: 9, agentId: "bc-00000000-0000-4000-8000-000000000201" },
++    { id: "c3#1", label: "c3 attempt 1", outcome: "finished", durationText: "1h 10m", startSeq: 6, endSeq: 11, agentId: "bc-00000000-0000-4000-8000-000000000301" },
++    { id: "c1#2", label: "c1 attempt 2", outcome: "finished", durationText: "47m", startSeq: 8, endSeq: 10, agentId: "bc-00000000-0000-4000-8000-000000000102" },
++    { id: "judge#1", label: "Film Room pass 1", outcome: "scored", durationText: "40m", startSeq: 12, endSeq: 13, agentId: "bc-00000000-0000-4000-8000-000000000401" },
++    { id: "judge#2", label: "Film Room pass 2", outcome: "scored", durationText: "35m", startSeq: 14, endSeq: 15, agentId: "bc-00000000-0000-4000-8000-000000000402" },
++    { id: "graft#1", label: "Trade", outcome: "pr_opened", durationText: "55m", startSeq: 16, endSeq: 17, agentId: "bc-00000000-0000-4000-8000-000000000501" },
++    { id: "physical#1", label: "Physical", outcome: "not_verified", durationText: "30m", startSeq: 18, endSeq: 19, agentId: "bc-00000000-0000-4000-8000-000000000601" },
++    { id: "fix#1", label: "Fix loop 1", outcome: "verified", durationText: "25m", startSeq: 20, endSeq: 21, agentId: "bc-00000000-0000-4000-8000-000000000501" },
++  ];
++  assert.equal(view.runs.length, expected.length);
++  expected.forEach((row, index) => {
++    const run = view.runs[index]!;
++    assert.equal(run.id, row.id);
++    assert.equal(run.label, row.label);
++    assert.equal(run.outcome, row.outcome);
++    assert.equal(run.durationText, row.durationText);
++    assert.equal(run.startSeq, row.startSeq);
++    assert.equal(run.endSeq, row.endSeq);
++    assert.equal(run.agentUrl, `https://cursor.com/agents/${row.agentId}`);
++  });
++  assert.deepEqual(assertAgrees(events, AFTER).runs, view.runs);
++});
++
++test("T3 sample stages", async () => {
++  const view = timeline(await loadSample(), LATER);
++  assert.ok(view);
++  const expected = [
++    { stage: "Intake", durationText: "6m", firstSeq: 1, lastSeq: 1 },
++    { stage: "Scouting Report", durationText: "14m", firstSeq: 2, lastSeq: 2 },
++    { stage: "Combine", durationText: "1h 12m", firstSeq: 3, lastSeq: 11 },
++    { stage: "Film Room", durationText: "1h 18m", firstSeq: 12, lastSeq: 15 },
++    { stage: "Trade", durationText: "56m", firstSeq: 16, lastSeq: 17 },
++    { stage: "Physical", durationText: "57m", firstSeq: 18, lastSeq: 21 },
++    { stage: "Draft Pick", durationText: "0s", firstSeq: 22, lastSeq: 23 },
++  ];
++  assert.equal(view.stages.length, expected.length);
++  expected.forEach((row, index) => {
++    const span = view.stages[index]!;
++    assert.equal(span.stage, row.stage);
++    assert.equal(span.durationText, row.durationText);
++    assert.equal(span.firstSeq, row.firstSeq);
++    assert.equal(span.lastSeq, row.lastSeq);
++    if (index < expected.length - 1) assert.equal(span.to, view.stages[index + 1]!.from);
++  });
++  assert.equal(view.stages[6]!.to, null);
++});
++
++test("T4 sample totals and links", async () => {
++  const events = await loadSample();
++  const view = assertAgrees(events, LATER);
++  assert.equal(view.status, "drafted");
++  assert.equal(view.live, false);
++  assert.equal(view.endedAt, "2026-10-10T18:43:00.000Z");
++  assert.equal(view.elapsedText, "4h 43m");
++  assert.equal(view.summary, "drafted · 4h 43m · 9 runs");
++  assert.deepEqual(view.counts, {
++    total: 9,
++    candidate: 4,
++    judge: 2,
++    graft: 1,
++    physical: 1,
++    fix: 1,
++    relaunches: 1,
++  });
++  assert.equal(view.entries.length, 23);
++  assert.equal(view.entries.find((entry) => entry.type === "scouting_approved")?.stage, "Combine");
++  const links = view.entries.flatMap((entry) => entry.links);
++  assert.equal(links.length, 19);
++  assert.equal(links.filter((link) => link.kind === "agent").length, 9);
++  assert.equal(links.filter((link) => link.kind === "commit").length, 6);
++  assert.equal(links.filter((link) => link.kind === "pr").length, 4);
++  for (const link of links) assert.equal(hrefOk(link.href, "BoydVC/draft-day"), true, link.href);
++  const graft = view.entries.find((entry) => entry.type === "graft_recorded");
++  assert.deepEqual(graft?.links.map((link) => link.kind), ["pr", "commit"]);
++  const verdict = view.entries.find((entry) => entry.seq === 19);
++  assert.deepEqual(verdict?.links.map((link) => link.kind), ["pr", "commit"]);
++});
++
++test("T5 run pairing", () => {
++  const now = Date.parse("2026-10-16T18:00:00.000Z");
++  const interleaved = [
++    created(),
++    ev(2, "2026-10-16T10:00:00.000Z", "candidate_launched", { cand: "c1", attempt: 1 }),
++    ev(3, "2026-10-16T10:01:00.000Z", "candidate_launched", { cand: "c2", attempt: 1 }),
++    ev(4, "2026-10-16T10:11:00.000Z", "candidate_finished", { cand: "c2", attempt: 1, report: { headSha: "b".repeat(40), tests: { added: 1, passing: true } } }),
++    ev(5, "2026-10-16T10:30:00.000Z", "candidate_finished", { cand: "c1", attempt: 1, report: { headSha: "a".repeat(40), tests: { added: 1, passing: true } } }),
++  ];
++  const paired = assertAgrees(interleaved, now);
++  assert.deepEqual(paired.runs.map((run) => ({ id: run.id, outcome: run.outcome, durationText: run.durationText, endSeq: run.endSeq })), [
++    { id: "c1#1", outcome: "finished", durationText: "30m", endSeq: 5 },
++    { id: "c2#1", outcome: "finished", durationText: "10m", endSeq: 4 },
++  ]);
++
++  const physical = record(eventPayload("NOT_VERIFIED"));
++  const shared = [
++    created(),
++    ev(2, "2026-10-16T11:00:00.000Z", "physical_launched", { attempt: 1, agentId: "bc-physical" }),
++    ev(3, "2026-10-16T11:10:00.000Z", "fix_requested", { loop: 1 }),
++    ev(4, "2026-10-16T11:20:00.000Z", "verdict_recorded", { attempt: 1, physical }),
++  ];
++  const firstVerdict = assertAgrees(shared, now);
++  assert.equal(firstVerdict.runs.find((run) => run.id === "physical#1")?.outcome, "not_verified");
++  assert.equal(firstVerdict.runs.find((run) => run.id === "physical#1")?.durationText, "20m");
++  assert.equal(firstVerdict.runs.find((run) => run.id === "fix#1")?.outcome, "running");
++  const second = assertAgrees([
++    ...shared,
++    ev(5, "2026-10-16T11:40:00.000Z", "verdict_recorded", { attempt: 2, physical: record(eventPayload("VERIFIED")) }),
++  ], now);
++  assert.equal(second.runs.find((run) => run.id === "fix#1")?.outcome, "verified");
++  assert.equal(second.runs.find((run) => run.id === "fix#1")?.durationText, "30m");
++  assert.equal(second.runs.find((run) => run.id === "fix#1")?.endSeq, 5);
++
++  const judges = assertAgrees([
++    created(),
++    ev(2, "2026-10-16T12:00:00.000Z", "judge_launched", { pass: 1 }),
++    ev(3, "2026-10-16T12:05:00.000Z", "judge_launched", { pass: 2 }),
++    ev(4, "2026-10-16T12:10:00.000Z", "judgement_recorded", { cards: [{ label: "A" }] }),
++  ], now);
++  assert.equal(judges.runs.find((run) => run.id === "judge#1")?.outcome, "scored");
++  assert.equal(judges.runs.find((run) => run.id === "judge#1")?.endSeq, 4);
++  assert.equal(judges.runs.find((run) => run.id === "judge#2")?.outcome, "running");
++
++  const orphan = [
++    created(),
++    ev(2, "2026-10-16T10:05:00.000Z", "candidate_finished", {
++      cand: "c1",
++      attempt: 1,
++      report: { headSha: "a".repeat(40), tests: { added: 1, passing: true } },
++    }),
++  ];
++  const none = assertAgrees(orphan, now);
++  assert.equal(none.runs.length, 0);
++  assert.equal(none.counts.total, 0);
++});
++
++function eventPayload(verdict: "NOT_VERIFIED" | "VERIFIED") {
++  return {
++    prNumber: 42,
++    headSha: "c".repeat(40),
++    verdict,
++    ledger: verdict === "VERIFIED" ? "live-ui-verified" : "verifier-failed",
++    certainty: verdict === "VERIFIED" ? 4 : 2,
++    evidence: ["notes"],
++    fixLoops: verdict === "VERIFIED" ? 1 : 0,
++  };
++}
++
++function record(physical: ReturnType<typeof eventPayload>): Record<string, unknown> {
++  return physical as unknown as Record<string, unknown>;
++}
++
++test("T6 open and abandoned runs", async () => {
++  const events = await loadSample();
++  const liveNow = Date.parse("2026-10-10T14:43:00.000Z");
++  const live = assertAgrees(events.slice(0, 8), liveNow);
++  assert.equal(live.summary, "combine · 43m · 4 runs");
++  assert.deepEqual(live.runs.map((run) => ({ id: run.id, outcome: run.outcome, durationText: run.durationText, endedAt: run.endedAt })), [
++    { id: "c1#1", outcome: "errored", durationText: "9m", endedAt: "2026-10-10T14:30:00.000Z" },
++    { id: "c2#1", outcome: "running", durationText: "22m", endedAt: null },
++    { id: "c3#1", outcome: "running", durationText: "22m", endedAt: null },
++    { id: "c1#2", outcome: "running", durationText: "12m", endedAt: null },
++  ]);
++  assert.equal(live.runs[1]!.durationMs, 22 * 60 * 1000);
++  assert.equal(live.runs[3]!.durationMs, 12 * 60 * 1000);
++  const combine = live.stages[live.stages.length - 1]!;
++  assert.equal(combine.stage, "Combine");
++  assert.equal(combine.durationText, "23m");
++  assert.equal(combine.to, null);
++
++  const cancelled = assertAgrees([
++    ...events.slice(0, 18),
++    ev(19, "2026-10-10T18:00:00.000Z", "pick_cancelled", { detail: "stop" }),
++  ], LATER);
++  assert.equal(cancelled.summary, "cancelled · 4h 00m · 8 runs");
++  const physical = cancelled.runs.find((run) => run.id === "physical#1");
++  assert.equal(physical?.outcome, "abandoned");
++  assert.equal(physical?.durationText, "14m");
++  assert.equal(physical?.endedAt, "2026-10-10T18:00:00.000Z");
++});
++
++test("T7 terminal timelines ignore now", async () => {
++  const events = await loadSample();
++  assert.deepEqual(timeline(events, AFTER), timeline(events, LATER));
++});
++
++test("T8 run counts agree with the reducer", async () => {
++  const now = Date.parse("2026-10-16T18:00:00.000Z");
++  assertAgrees(await loadSample(), LATER);
++  const interleaved = [
++    created(),
++    ev(2, "2026-10-16T10:00:00.000Z", "candidate_launched", { cand: "c1", attempt: 1 }),
++    ev(3, "2026-10-16T10:01:00.000Z", "candidate_launched", { cand: "c2", attempt: 1 }),
++    ev(4, "2026-10-16T10:11:00.000Z", "candidate_finished", { cand: "c2" }),
++    ev(5, "2026-10-16T10:30:00.000Z", "candidate_finished", { cand: "c1" }),
++  ];
++  const physical = eventPayload("NOT_VERIFIED");
++  const shared = [
++    created(),
++    ev(2, "2026-10-16T11:00:00.000Z", "physical_launched", { attempt: 1 }),
++    ev(3, "2026-10-16T11:10:00.000Z", "fix_requested", { loop: 1 }),
++    ev(4, "2026-10-16T11:20:00.000Z", "verdict_recorded", { physical }),
++    ev(5, "2026-10-16T11:40:00.000Z", "verdict_recorded", { physical: eventPayload("VERIFIED") }),
++  ];
++  const judges = [
++    created(),
++    ev(2, "2026-10-16T12:00:00.000Z", "judge_launched", { pass: 1 }),
++    ev(3, "2026-10-16T12:05:00.000Z", "judge_launched", { pass: 2 }),
++    ev(4, "2026-10-16T12:10:00.000Z", "judgement_recorded", { cards: [] }),
++  ];
++  const orphan = [created(), ev(2, "2026-10-16T10:05:00.000Z", "candidate_finished", { cand: "c1" })];
++  const open = (await loadSample()).slice(0, 8);
++  const abandoned = [
++    ...(await loadSample()).slice(0, 18),
++    ev(19, "2026-10-10T18:00:00.000Z", "pick_cancelled", {}),
++  ];
++  for (const events of [interleaved, shared, judges, orphan, open, abandoned]) assertAgrees(events, now);
++
++  const data = await mkdtemp(join(tmpdir(), "dd-t8-"));
++  const result = await dd(["selftest", "--keep", "--data", data]);
++  assert.equal(result.code, 0, result.stdout + result.stderr);
++  const expected = {
++    happy: { total: 8, candidate: 4, relaunches: 1, judge: 1, graft: 1, physical: 1, fix: 1 },
++    walkover: { total: 6, candidate: 5, relaunches: 2, physical: 1 },
++    policy: { total: 0 },
++  };
++  for (const name of ["happy", "walkover", "policy"] as const) {
++    const match = result.stdout.match(new RegExp(`^${name} (p-\\d{8}-\\d{2}) `, "m"));
++    assert.ok(match, result.stdout);
++    const raw = await readFile(join(data, "picks", match[1]!, "events.jsonl"), "utf8");
++    const events = raw.split("\n").filter((line) => line.trim()).map((line) => JSON.parse(line) as DraftEvent);
++    const view = assertAgrees(events, Date.now());
++    const want = expected[name];
++    assert.equal(view.counts.total, want.total, `${name} total`);
++    if ("candidate" in want) assert.equal(view.counts.candidate, want.candidate, name);
++    if ("relaunches" in want) assert.equal(view.counts.relaunches, want.relaunches, name);
++    if ("judge" in want) assert.equal(view.counts.judge, want.judge, name);
++    if ("graft" in want) assert.equal(view.counts.graft, want.graft, name);
++    if ("physical" in want) assert.equal(view.counts.physical, want.physical, name);
++    if ("fix" in want) assert.equal(view.counts.fix, want.fix, name);
++  }
++});
++
++test("T9 entry order, status, and clock skew", async () => {
++  const sample = await loadSample();
++  const skewed = sample.map((event) => ({ ...event, payload: { ...event.payload } }));
++  skewed.find((event) => event.seq === 9)!.ts = "2000-01-01T00:00:00.000Z";
++  skewed.find((event) => event.seq === 10)!.ts = "not-a-timestamp";
++  const shuffled = [...skewed];
++  for (let index = shuffled.length - 1; index > 0; index -= 1) {
++    const swap = (index * 7) % (index + 1);
++    const left = shuffled[index]!;
++    shuffled[index] = shuffled[swap]!;
++    shuffled[swap] = left;
++  }
++  const view = timeline(shuffled, LATER);
++  assert.ok(view);
++  const ordered = [...shuffled].sort((a, b) => a.seq - b.seq);
++  const times = clock(ordered);
++  assert.equal(view.entries.length, ordered.length);
++  let previousStart = 0;
++  ordered.forEach((event, index) => {
++    const entry = view.entries[index]!;
++    const pick = reduce(ordered.slice(0, index + 1), times[index]!);
++    assert.ok(pick);
++    assert.equal(entry.seq, event.seq);
++    assert.equal(entry.status, pick.status);
++    assert.equal(entry.stage, stageLabel(pick.status));
++    assert.equal(Number.isFinite(entry.sinceStartMs) && entry.sinceStartMs >= 0, true);
++    assert.equal(Number.isFinite(entry.sincePrevMs) && entry.sincePrevMs >= 0, true);
++    assert.equal(entry.sinceStartText, formatDuration(entry.sinceStartMs));
++    assert.ok(entry.sinceStartMs >= previousStart);
++    previousStart = entry.sinceStartMs;
++  });
++  assert.equal(view.entries.find((entry) => entry.seq === 9)?.sincePrevMs, 0);
++  assert.equal(view.entries.find((entry) => entry.seq === 10)?.sincePrevMs, 0);
++  const walk = (value: unknown): void => {
++    if (typeof value === "number") assert.equal(Number.isFinite(value), true);
++    else if (value && typeof value === "object") for (const item of Object.values(value)) walk(item);
++  };
++  walk(view);
++  for (const run of view.runs) assert.equal(run.durationText, formatDuration(run.durationMs));
++  for (const span of view.stages) assert.equal(span.durationText, formatDuration(span.durationMs));
++  assert.equal(view.elapsedText, formatDuration(view.elapsedMs));
++});
++
++test("T10 titles", async () => {
++  const events = await loadSample();
++  const view = timeline(events, LATER);
++  assert.ok(view);
++  const tokens: Record<number, string[]> = {
++    1: ["Pick created", "chat"],
++    2: ["Scouting report", "2 acceptance"],
++    3: ["approved"],
++    4: ["c1", "launched"],
++    5: ["c2", "launched"],
++    6: ["c3", "launched"],
++    7: ["c1", "errored", "9m"],
++    8: ["c1", "launched", "relaunch"],
++    9: ["c2", "finished", "52m", "2222222", "6 tests"],
++    10: ["c1", "finished", "47m", "1111111", "5 tests"],
++    11: ["c3", "finished", "1h 10m", "3333333", "9 tests"],
++    12: ["Film Room pass 1"],
++    13: ["pass 1", "3 cards", "judge named c2"],
++    14: ["Film Room pass 2", "reversed"],
++    15: ["pass 2", "3 cards", "judge named c2"],
++    16: ["Trade"],
++    17: ["#42"],
++    18: ["Physical"],
++    19: ["NOT_VERIFIED", "30m"],
++    20: ["Fix loop 1 of 2"],
++    21: ["VERIFIED", "25m"],
++    22: ["#42", "draft"],
++    23: ["combine", "c1 errored on its first launch; the relaunch finished in 47m"],
++  };
++  for (const entry of view.entries) {
++    const event = events.find((item) => item.seq === entry.seq)!;
++    for (const token of tokens[entry.seq] ?? []) assert.equal(entry.title.includes(token), true, `${entry.seq} ${entry.title}`);
++    assert.equal(entry.title.includes(event.type), false, entry.title);
++    const supplied = stringsIn(event.payload);
++    for (const word of ["undefined", "NaN", "null", "[object Object]"]) {
++      if (!supplied.some((text) => text.includes(word))) assert.equal(entry.title.includes(word), false, entry.title);
++    }
++  }
++  const dropped = timeline([
++    created(),
++    ev(2, "2026-10-16T10:10:00.000Z", "candidate_dropped", { cand: "c4" }),
++  ], LATER);
++  assert.equal(dropped?.entries[1]?.title.includes("c4"), true);
++  assert.equal(dropped?.entries[1]?.title.includes("dropped"), true);
++  const failed = timeline([
++    created(),
++    ev(2, "2026-10-16T10:12:00.000Z", "pick_failed", { reason: "reframe" }),
++  ], LATER);
++  assert.equal(failed?.entries[1]?.title.includes("failed"), true);
++  assert.equal(failed?.entries[1]?.title.includes("reframe"), true);
++  const cancelled = timeline([
++    created(),
++    ev(2, "2026-10-16T10:20:00.000Z", "pick_cancelled", { detail: "no" }),
++  ], LATER);
++  assert.equal(cancelled?.entries[1]?.title.includes("Cancelled"), true);
++  const unknown = timeline([
++    created(),
++    { ...ev(2, "2026-10-16T10:30:00.000Z", "lesson_recorded", {}), type: "not_an_event" as EventType },
++  ], LATER);
++  assert.equal(unknown?.entries[1]?.title, "Unrecognized event");
++  for (const extra of [dropped, failed, cancelled, unknown]) {
++    assert.ok(extra);
++    for (const entry of extra.entries) {
++      assert.equal(entry.title.includes(String(entry.type)) && entry.title !== "Unrecognized event", false);
++    }
++  }
++});
++
++test("T11 link allowlist", async () => {
++  for (const value of [
++    "bc-c1-1",
++    "agent-c1-1",
++    "javascript:alert(1)",
++    "bc-00000000-0000-4000-8000-000000000001\" onmouseover=\"x",
++    "https://evil.example/bc-00000000-0000-4000-8000-000000000001",
++    42,
++    null,
++  ]) {
++    assert.equal(agentUrl(value), null, String(value));
++  }
++  assert.equal(
++    agentUrl("bc-00000000-0000-4000-8000-000000000101"),
++    "https://cursor.com/agents/bc-00000000-0000-4000-8000-000000000101",
++  );
++  const hostile = timeline([
++    created(1, "2026-10-16T10:00:00.000Z"),
++    ev(2, "2026-10-16T10:01:00.000Z", "candidate_launched", { cand: "c1", attempt: 1, agentId: "javascript:alert(1)" }),
++    ev(3, "2026-10-16T10:02:00.000Z", "candidate_launched", { cand: "c2", attempt: 1, agentId: "bc-c1-1" }),
++    ev(4, "2026-10-16T10:03:00.000Z", "judge_launched", { pass: 1, agentId: "https://evil.example/bc-00000000-0000-4000-8000-000000000001" }),
++    ev(5, "2026-10-16T10:04:00.000Z", "graft_recorded", { prNumber: 0, headSha: "NOT-A-SHA" }),
++    ev(6, "2026-10-16T10:05:00.000Z", "verdict_recorded", {
++      physical: { prNumber: "42", headSha: "javascript:alert(1)", verdict: "VERIFIED" },
++    }),
++    ev(7, "2026-10-16T10:06:00.000Z", "candidate_launched", {
++      cand: "c3",
++      attempt: 1,
++      agentId: "bc-11111111-2222-4333-8444-555555555555",
++    }),
++  ], LATER);
++  assert.ok(hostile);
++  for (const link of hostile.entries.flatMap((entry) => entry.links)) {
++    assert.equal(hrefOk(link.href, "BoydVC/draft-day"), true, link.href);
++  }
++  assert.equal(hostile.runs.find((run) => run.agentId === "javascript:alert(1)")?.agentUrl, null);
++  assert.equal(hostile.runs.find((run) => run.agentId === "bc-11111111-2222-4333-8444-555555555555")?.agentUrl, "https://cursor.com/agents/bc-11111111-2222-4333-8444-555555555555");
++
++  const data = await mkdtemp(join(tmpdir(), "dd-t11-"));
++  const idea = "<script>alert(1)</script>";
++  const createdPick = await dd([
++    "intake", "--idea", idea, "--source", "chat", "--target", "BoydVC/draft-day", "--data", data, "--json",
++  ]);
++  assert.equal(createdPick.code, 0, createdPick.stderr);
++  const pickId = (JSON.parse(createdPick.stdout) as { pickId: string }).pickId;
++  const agents = [
++    ["c1", "bc-c1-1"],
++    ["c2", "agent-c1-1"],
++    ["c3", "javascript:alert(1)"],
++    ["c4", "bc-00000000-0000-4000-8000-000000000001\" onmouseover=\"x"],
++    ["c5", "https://evil.example/bc-00000000-0000-4000-8000-000000000001"],
++  ];
++  for (const [cand, agent] of agents) {
++    const recorded = await dd(["record", pickId, "candidate_launched", "--cand", cand, "--agent", agent, "--data", data]);
++    assert.equal(recorded.code, 0, recorded.stderr);
++  }
++  const judged = await dd(["record", pickId, "judge_launched", "--agent", "42", "--data", data]);
++  assert.equal(judged.code, 0, judged.stderr);
++  const lesson = await dd([
++    "record", pickId, "lesson_recorded", "--topic", "xss", "--text", "<img src=x onerror=alert(1)>", "--data", data,
++  ]);
++  assert.equal(lesson.code, 0, lesson.stderr);
++  const server = await startServer({
++    host: "127.0.0.1",
++    port: 0,
++    dataDir: data,
++    configPath: join(root, "draftday.config.json"),
++    targetsPath: join(root, "targets.json"),
++  });
++  try {
++    const response = await fetch(`${server.url}/api/picks/${pickId}`);
++    const raw = await response.text();
++    const body = JSON.parse(raw) as { idea: string; timeline: Timeline };
++    assert.equal(body.idea, idea);
++    assert.equal(raw.includes(idea), true);
++    assert.equal(raw.includes("<img src=x onerror=alert(1)>"), true);
++    const titles = body.timeline.entries.map((entry) => entry.title).join("\n");
++    assert.equal(titles.includes("<img src=x onerror=alert(1)>"), true);
++    for (const link of body.timeline.entries.flatMap((entry) => entry.links)) {
++      assert.equal(hrefOk(link.href, "BoydVC/draft-day"), true, link.href);
++    }
++    for (const run of body.timeline.runs) assert.equal(run.agentUrl, null);
++  } finally {
++    await server.close();
++  }
++});
++
++test("T12 go timeout", async () => {
++  const events = (await loadSample()).slice(0, 2);
++  const now = Date.parse("2026-10-12T15:06:00.000Z");
++  const view = timeline(events, now);
++  assert.ok(view);
++  assert.equal(view.status, "cancelled");
++  assert.equal(view.live, false);
++  assert.equal(view.endedAt, "2026-10-12T14:06:00.000Z");
++  assert.equal(view.stages.length, 3);
++  assert.equal(view.stages[0]!.stage, "Intake");
++  assert.equal(view.stages[1]!.stage, "Scouting Report");
++  assert.equal(view.stages[1]!.durationText, "2d 0h");
++  assert.equal(view.stages[1]!.to, view.endedAt);
++  assert.equal(view.stages[2]!.stage, "Cancelled");
++  assert.equal(view.stages[2]!.firstSeq, null);
++  assert.equal(view.stages[2]!.lastSeq, null);
++  assert.equal(view.stages[2]!.durationMs, 0);
++});
++
++test("T13 pick API carries timeline", async () => {
++  const events = await loadSample();
++  const data = await mkdtemp(join(tmpdir(), "dd-t13-"));
++  await mkdir(join(data, "picks", "p-20261010-07"), { recursive: true });
++  await writeFile(join(data, "picks", "p-20261010-07", "events.jsonl"), await readFile(join(root, "test/fixtures/timeline/p-20261010-07.events.jsonl")));
++  const server = await startServer({
++    host: "127.0.0.1",
++    port: 0,
++    dataDir: data,
++    configPath: join(root, "draftday.config.json"),
++    targetsPath: join(root, "targets.json"),
++  });
++  try {
++    const response = await fetch(`${server.url}/api/picks/p-20261010-07`);
++    const body = await response.json() as { timeline: Timeline; events?: unknown };
++    assert.equal(response.status, 200);
++    assert.equal(Object.hasOwn(body, "events"), false);
++    assert.deepEqual(body.timeline, timeline(events, AFTER));
++    assert.deepEqual(body.timeline, timeline(events, LATER));
++  } finally {
++    await server.close();
++  }
++  const files: string[] = [];
++  async function walk(dir: string) {
++    for (const name of await readdir(dir, { withFileTypes: true })) {
++      const full = join(dir, name.name);
++      if (name.isDirectory()) await walk(full);
++      else files.push(full);
++    }
++  }
++  await walk(join(root, "src"));
++  for (const file of files) {
++    const text = await readFile(file, "utf8");
++    assert.equal(text.includes("summarizeEvent"), false, file);
++  }
++});
++
++test("T14 dd timeline", async () => {
++  const events = await loadSample();
++  const view = timeline(events, Date.now());
++  assert.ok(view);
++  const data = await mkdtemp(join(tmpdir(), "dd-t14-"));
++  await mkdir(join(data, "picks", "p-20261010-07"), { recursive: true });
++  await writeFile(
++    join(data, "picks", "p-20261010-07", "events.jsonl"),
++    await readFile(join(root, "test/fixtures/timeline/p-20261010-07.events.jsonl")),
++  );
++  const json = await dd(["timeline", "p-20261010-07", "--json", "--data", data]);
++  assert.equal(json.code, 0, json.stderr);
++  assert.deepEqual(JSON.parse(json.stdout), view);
++  const text = await dd(["timeline", "p-20261010-07", "--data", data]);
++  assert.equal(text.code, 0, text.stderr);
++  const lines = text.stdout.trimEnd().split("\n");
++  assert.equal(lines.length, 25);
++  assert.equal(lines[0], "p-20261010-07  drafted  4h 43m  9 runs");
++  assert.equal(lines[24], "runs 9: candidate 4 (1 relaunch), judge 2, graft 1, physical 1, fix 1");
++  view.entries.forEach((entry, index) => {
++    assert.equal(lines[index + 1], `+${entry.sinceStartText}  ${entry.stage}  ${entry.title}`);
++  });
++  const malformed = await dd(["timeline", "nope", "--data", data]);
++  assert.equal(malformed.code, 2);
++  assert.match(malformed.stderr, /error:/);
++  const missing = await dd(["timeline", "p-20261010-99", "--data", data]);
++  assert.equal(missing.code, 2);
++  assert.match(missing.stderr, /error:/);
++  const help = await dd(["help"]);
++  assert.match(help.stdout, /dd timeline <pickId>/);
++});
++
++test("T18 no markup from payloads", async () => {
++  const banned = ["innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "new Function"];
++  for (const name of await readdir(join(root, "src/ui"))) {
++    const text = await readFile(join(root, "src/ui", name), "utf8");
++    for (const token of banned) assert.equal(text.includes(token), false, `${name} ${token}`);
++  }
++  const script = await readFile(join(root, "src/ui/timeline.js"), "utf8");
++  assert.equal(script.includes("fetch("), false);
++  const lesson = "<img src=x onerror=alert(1)>";
++  const view = timeline([
++    created(),
++    ev(2, "2026-10-16T10:05:00.000Z", "lesson_recorded", { topic: "xss", text: lesson }),
++  ], LATER);
++  assert.equal(view?.entries[1]?.title.includes(lesson), true);
++});
++
++test("T19 300 events", async () => {
++  const events = await loadSample();
++  for (let index = 0; index < 277; index += 1) {
++    events.push(ev(24 + index, "2026-10-10T18:50:00.000Z", "lesson_recorded", { topic: "extra", text: `note ${index}` }));
++  }
++  assert.equal(events.length, 300);
++  const started = performance.now();
++  const view = timeline(events, LATER);
++  const elapsed = performance.now() - started;
++  assert.ok(view);
++  assert.equal(view.entries.length, 300);
++  assert.ok(elapsed < 1000, `elapsed ${elapsed}`);
++});

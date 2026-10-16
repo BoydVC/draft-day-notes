@@ -1,0 +1,179 @@
+diff --git a/src/ui/app.js b/src/ui/app.js
+index 9e76019..0effaae 100644
+--- a/src/ui/app.js
++++ b/src/ui/app.js
+@@ -21,13 +21,17 @@ function route() {
+   const hash = location.hash.replace(/^#/, "");
+   const match = hash.match(/^\/picks\/(p-\d{8}-\d{2})$/);
+   if (match) return { name: "pick", id: match[1] };
++  const lessons = hash.match(/^\/lessons(?:\?(.*))?$/);
++  if (lessons) return { name: "lessons", query: new URLSearchParams(lessons[1] || "") };
+   return { name: "board" };
+ }
+ 
+ function formPanel() {
+-  const idea = el("textarea", { id: "idea", name: "idea", required: "true" });
+-  const target = el("input", { id: "target", name: "target", value: "BoydVC/draft-day", required: "true" });
+-  const n = el("input", { id: "n", name: "n", type: "number", min: "1", max: "5", value: "3" });
++  const idea = el("textarea", { id: "idea", name: "idea", required: "true", rows: "3" });
++  if (intake.idea !== null) idea.value = intake.idea;
++  const target = el("input", { id: "target", name: "target", value: "BoydVC/draft-day", required: "true", autocapitalize: "none", autocorrect: "off", spellcheck: "false", autocomplete: "off" });
++  const n = el("input", { id: "n", name: "n", type: "number", min: "1", max: "5", value: "3", inputmode: "numeric" });
++  const button = el("button", { type: "submit" }, ["Add pick"]);
+   const status = el("p", { id: "form-status", role: "status" });
+   const form = el("form", { id: "new-pick", "aria-label": "New pick" }, [
+     el("div", {}, [el("label", { for: "idea" }, ["Idea"]), idea]),
+@@ -35,12 +39,14 @@ function formPanel() {
+       el("div", {}, [el("label", { for: "target" }, ["Target"]), target]),
+       el("div", {}, [el("label", { for: "n" }, ["Candidates"]), n]),
+     ]),
+-    el("button", { type: "submit" }, ["Add pick"]),
++    button,
+     status,
+   ]);
++  intake.view = { idea, target, n, button, status };
++  paintIntake();
+   form.addEventListener("submit", (event) => {
+     event.preventDefault();
+-    void submitPick(idea, target, n, status);
++    void submitPick();
+   });
+   return el("section", { class: "panel", "aria-label": "New pick" }, [
+     el("h2", {}, ["New pick"]),
+@@ -48,56 +54,79 @@ function formPanel() {
+   ]);
+ }
+ 
+-async function submitPick(idea, target, n, status) {
+-  status.textContent = "Sending…";
+-  const response = await fetch("/api/intake", {
+-    method: "POST",
+-    headers: { "content-type": "application/json" },
+-    body: JSON.stringify({
+-      idea: idea.value,
+-      target: target.value,
+-      n: Number(n.value),
+-      source: "warroom",
+-    }),
+-  });
+-  const body = await response.json();
+-  if (!response.ok) {
+-    status.textContent = body.error || "Could not queue the pick";
+-    return;
++const QUEUED = "Queued in the inbox. Nothing launches from this page.";
++const UNREACHABLE = "Could not reach the War Room. Check the Big Board before trying again.";
++const intake = { pending: false, note: "", idea: null, view: null };
++
++function paintIntake() {
++  const view = intake.view;
++  if (!view) return;
++  view.status.textContent = intake.note;
++  view.button.disabled = intake.pending;
++  if (intake.pending) view.button.setAttribute("aria-disabled", "true");
++  else view.button.removeAttribute("aria-disabled");
++}
++
++async function submitPick() {
++  if (intake.pending || !intake.view) return;
++  const sent = { idea: intake.view.idea.value, target: intake.view.target.value, n: Number(intake.view.n.value) };
++  intake.pending = true;
++  intake.note = "Sending…";
++  intake.idea = sent.idea;
++  paintIntake();
++  let note = UNREACHABLE;
++  let queued = false;
++  try {
++    const response = await fetch("/api/intake", {
++      method: "POST",
++      headers: { "content-type": "application/json" },
++      body: JSON.stringify({ ...sent, source: "warroom" }),
++    });
++    const body = await response.json().catch(() => null);
++    if (body && typeof body === "object") {
++      if (!response.ok) note = body.error || "Could not queue the pick";
++      else {
++        queued = true;
++        note = body.policy ? `Queued in the inbox. Policy will refuse it (${body.policy}).` : QUEUED;
++      }
++    }
++  } catch {
++    note = UNREACHABLE;
+   }
+-  idea.value = "";
+-  status.textContent = body.policy
+-    ? `Queued in the inbox. Policy will refuse it (${body.policy}).`
+-    : "Queued in the inbox.";
+-  await render({ soft: true });
++  intake.pending = false;
++  intake.note = note;
++  intake.idea = queued ? null : sent.idea;
++  if (intake.view) intake.view.idea.value = queued ? "" : sent.idea;
++  paintIntake();
++  if (queued) await render({ soft: true });
+ }
+ 
+ function boardTable(data) {
+   const rows = [];
+   for (const pick of data.picks) {
+-    rows.push(el("tr", { "data-pick-id": pick.id }, [
+-      el("td", {}, [el("a", { href: `#/picks/${pick.id}` }, [pick.id])]),
+-      el("td", {}, [pick.idea]),
+-      el("td", {}, [pick.stage]),
+-      el("td", {}, [chip(pick.status)]),
+-      el("td", {}, [String(pick.runs)]),
++    rows.push(el("tr", { "data-pick-id": pick.id, role: "row" }, [
++      el("td", { role: "cell", "data-label": "Pick" }, [el("a", { href: `#/picks/${pick.id}` }, [pick.id])]),
++      el("td", { role: "cell", "data-label": "Idea" }, [pick.idea]),
++      el("td", { role: "cell", "data-label": "Stage" }, [pick.stage]),
++      el("td", { role: "cell", "data-label": "Status" }, [chip(pick.status)]),
++      el("td", { role: "cell", "data-label": "Runs" }, [String(pick.runs)]),
+     ]));
+   }
+   for (const item of data.inbox) {
+-    rows.push(el("tr", { "data-inbox": String(item.offset) }, [
+-      el("td", {}, ["queued"]),
+-      el("td", {}, [item.idea]),
+-      el("td", {}, [item.stage]),
+-      el("td", {}, [chip(item.status)]),
+-      el("td", {}, ["0"]),
++    rows.push(el("tr", { "data-inbox": String(item.offset), role: "row" }, [
++      el("td", { role: "cell", "data-label": "Pick" }, ["queued"]),
++      el("td", { role: "cell", "data-label": "Idea" }, [item.idea]),
++      el("td", { role: "cell", "data-label": "Stage" }, [item.stage]),
++      el("td", { role: "cell", "data-label": "Status" }, [chip(item.status)]),
++      el("td", { role: "cell", "data-label": "Runs" }, ["0"]),
+     ]));
+   }
+   const body = rows.length
+     ? rows
+-    : [el("tr", {}, [el("td", { colspan: "5", class: "empty" }, ["No picks yet. Add one from the form or from chat."])])];
+-  return el("table", {}, [
+-    el("thead", {}, [el("tr", {}, ["Pick", "Idea", "Stage", "Status", "Runs"].map((name) => el("th", {}, [name])))]),
+-    el("tbody", { id: "board-body" }, body),
++    : [el("tr", { role: "row" }, [el("td", { role: "cell", colspan: "5", class: "empty" }, ["No picks yet. Add one from the form or from chat."])])];
++  return el("table", { class: "board-table", role: "table", "aria-label": "Picks" }, [
++    el("thead", { role: "rowgroup" }, [el("tr", { role: "row" }, ["Pick", "Idea", "Stage", "Status", "Runs"].map((name) => el("th", { role: "columnheader", scope: "col" }, [name])))]),
++    el("tbody", { id: "board-body", role: "rowgroup" }, body),
+   ]);
+ }
+ 
+@@ -108,6 +137,7 @@ function boardView(data) {
+       el("h2", {}, ["Big Board"]),
+       boardTable(data),
+     ]),
++    el("p", { class: "back" }, [el("a", { href: "#/lessons" }, ["Locker Room"])]),
+   ]);
+ }
+ 
+@@ -314,6 +344,11 @@ async function render(options) {
+       );
+       return;
+     }
++    if (where.name === "lessons") {
++      const report = await fetch(`/api/lessons?${where.query}`).then((response) => response.json());
++      app.replaceChildren(globalThis.draftDayLessons(report, el));
++      return;
++    }
+     app.replaceChildren();
+     if (where.name === "pick") {
+       const response = await fetch(`/api/picks/${where.id}`);

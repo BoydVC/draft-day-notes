@@ -1,0 +1,1788 @@
+diff --git a/.cursor/skills/verify-draft-day/features/README.md b/.cursor/skills/verify-draft-day/features/README.md
+index f8aa5c3..25ec957 100644
+--- a/.cursor/skills/verify-draft-day/features/README.md
++++ b/.cursor/skills/verify-draft-day/features/README.md
+@@ -28,6 +28,7 @@ This directory is the maintained source for verifying the War Room. Read the ind
+ ## Features
+ 
+ - [Big Board](./big-board.md) lists seeded picks with status chips and run counts.
++- [Decision log](./timeline.md) reads one pick as stages, runs, and plain sentences.
+ - [New pick](./new-pick.md) queues an idea from the form into the inbox and onto the board.
+ - [Pick page](./pick-page.md) shows the scouting report, candidates, scorecard, trades, physical, and decision log.
+ - [Live updates](./live-updates.md) refresh the open board or pick page when an event or inbox row lands.
+diff --git a/.cursor/skills/verify-draft-day/features/live-updates.md b/.cursor/skills/verify-draft-day/features/live-updates.md
+index 786d0f6..b9f8c3a 100644
+--- a/.cursor/skills/verify-draft-day/features/live-updates.md
++++ b/.cursor/skills/verify-draft-day/features/live-updates.md
+@@ -21,7 +21,7 @@ Preconditions:
+ - **Inbox update.** With the Big Board open, submit `New pick` with idea `Show the run count in the page title`. Within two seconds the table shows that idea and the document did not reload.
+ - **Event update.** Open the drafted pick. In another terminal, record a lesson:
+   `node --experimental-strip-types src/cli/dd.ts record <pickId> lesson_recorded --topic board --text "status chips need a legend" --data "$DATA"`.
+-  Within two seconds the decision log on the open page includes that lesson.
++  Within two seconds the region named `Decision log` includes the lesson topic `board` and the text `status chips need a legend`.
+ - **Proof.** The inbox half is the same screenshot as New pick. For the event half, screenshot `/opt/cursor/artifacts/war-room/pick-page-after-lesson.png` if you drive it. A run that only drives New pick must say the lesson path was not driven.
+ 
+ ## Gotchas
+diff --git a/.cursor/skills/verify-draft-day/features/timeline.md b/.cursor/skills/verify-draft-day/features/timeline.md
+new file mode 100644
+index 0000000..c87dd40
+--- /dev/null
++++ b/.cursor/skills/verify-draft-day/features/timeline.md
+@@ -0,0 +1,37 @@
++# Decision log
++
++A pick page reads its event log as plain sentences, stage durations, and agent runs.
++
++## Sub-features
++
++- `timeline-read` shows the sample pick's summary, stages, and runs.
++- `timeline-phone` keeps the sample pick inside a 390px-wide page.
++- `timeline-live` shows a new run, then its finish, without a reload.
++- `timeline-hostile` shows payload markup as text and does not link a bad agent id.
++
++## How to get to it (user POV)
++
++- `control.sh seed-timeline` copies the sample pick into this run's data directory.
++- Open `#/picks/p-20261010-07` on the War Room origin.
++- The region named `Decision log` is below Physical.
++
++## Driving it with the browser
++
++Preconditions:
++
++- `control.sh doctor` passes.
++- `control.sh seed-timeline` has returned `seeded p-20261010-07`.
++- Drive the Big Board's three-row proof before `seed-timeline` if you drive it at all. Seeding adds a fourth pick.
++
++- **Read the log.** Open `#/picks/p-20261010-07` at 1280×800. The region named `Decision log` shows `drafted · 4h 43m · 9 runs`. The list named `Stages` has `Intake 6m`, `Scouting Report 14m`, `Combine 1h 12m`, `Film Room 1h 18m`, `Trade 56m`, `Physical 57m`, and `Draft Pick` with no duration. Screenshot `/opt/cursor/artifacts/war-room/timeline-drafted.png` with that summary and the stage list in frame.
++- **Read the runs.** Scroll to the table named `Runs`. Columns are `Run`, `Agent`, `Started`, `Duration`, and `Outcome`. The `c1 attempt 1` row is `errored` and `9m`. The `c1 attempt 2` row is present. Agent cells for those rows are links named `Agent c1 attempt 1` and `Agent c1 attempt 2`, each opening in a new tab. Screenshot `/opt/cursor/artifacts/war-room/timeline-runs.png`.
++- **Phone width.** Resize to 390×844, reload the sample pick, and read `document.documentElement.scrollWidth`. It is at most 390. The runs table may scroll inside its own box. Screenshot `/opt/cursor/artifacts/war-room/timeline-phone.png`.
++- **Selftest pick.** Open the happy selftest pick (idea `Add a status legend to the War Room`). The summary ends in `8 runs`. Agent ids are text, not links. Screenshot `/opt/cursor/artifacts/war-room/timeline-selftest.png`.
++- **Live update.** `dd intake` a fresh pick in `$DATA`. Open its page first. Then `dd record <id> candidate_launched --cand c1 --agent bc-11111111-2222-4333-8444-555555555555 --data "$DATA"`. Within two seconds the runs table gains a `running` row whose Agent cell is a link. Screenshot `/opt/cursor/artifacts/war-room/timeline-live.png` in that window. Record `candidate_finished --cand c1 --file <report.md>` (one `dd-report` block) and confirm the same row reads `finished` within two seconds. `dd record` does not check stage order, so this pick needs no scouting report.
++- **Hostile payload.** On another fresh pick, record `candidate_launched --cand c2 --agent 'javascript:alert(1)'` and `lesson_recorded --topic xss --text '<img src=x onerror=alert(1)>'`. Open that pick. The lesson text is visible as those characters. The Decision log contains no `img` element and no link for that agent. Screenshot `/opt/cursor/artifacts/war-room/timeline-hostile.png`.
++
++## Gotchas
++
++- Started times use the browser's time zone. Durations are already formatted by the API.
++- Selftest agent ids such as `bc-c1-1` are not Cursor agent ids, so they stay text.
++- Cleanup does not delete `/opt/cursor/artifacts/war-room/`.
+diff --git a/.cursor/skills/verify-draft-day/helpers/control.sh b/.cursor/skills/verify-draft-day/helpers/control.sh
+index 97c3242..cb1991f 100755
+--- a/.cursor/skills/verify-draft-day/helpers/control.sh
++++ b/.cursor/skills/verify-draft-day/helpers/control.sh
+@@ -90,6 +90,17 @@ EOF
+     done
+     echo "doctor: pass $URL pid $PID"
+     ;;
++  seed-timeline)
++    load_state
++    mkdir -p "$DATA/picks/p-20261010-07"
++    cp "$ROOT/test/fixtures/timeline/p-20261010-07.events.jsonl" "$DATA/picks/p-20261010-07/events.jsonl"
++    code="$(curl -s -o /dev/null -w "%{http_code}" "${URL}/api/picks/p-20261010-07")"
++    if [[ "$code" != "200" ]]; then
++      echo "seed-timeline: fail GET /api/picks/p-20261010-07 returned ${code}" >&2
++      exit 1
++    fi
++    echo "seeded p-20261010-07"
++    ;;
+   cleanup)
+     load_state
+     if kill -0 "$PID" 2>/dev/null; then
+@@ -109,7 +120,7 @@ EOF
+     echo "cleaned pid ${PID:-?} data ${DATA:-?}"
+     ;;
+   *)
+-    echo "usage: control.sh launch|doctor|cleanup" >&2
++    echo "usage: control.sh launch|doctor|seed-timeline|cleanup" >&2
+     exit 2
+     ;;
+ esac
+diff --git a/README.md b/README.md
+index 24f19a1..b0b0f38 100644
+--- a/README.md
++++ b/README.md
+@@ -42,7 +42,7 @@ A brand-new pick rests in `intake` until the scouting report is recorded. `scout
+ 
+ ## Commands
+ 
+-`intake`, `next`, `record`, `show`, `board`, `brief`, `lessons`, `serve`, `doctor`, `selftest`.
++`intake`, `next`, `record`, `show`, `timeline`, `board`, `brief`, `lessons`, `serve`, `doctor`, `selftest`.
+ 
+ Pass `--json` for a JSON payload. Pass `--data`, `--config`, and `--targets` to point at other files.
+ 
+diff --git a/docs/DECISIONS.tsv b/docs/DECISIONS.tsv
+index 80377b0..384b6bc 100644
+--- a/docs/DECISIONS.tsv
++++ b/docs/DECISIONS.tsv
+@@ -10,3 +10,8 @@ ts	phase	decision	why	evidence	result
+ 2026-10-16T16:40:00Z	policy	The War Room appends inbox rows and never writes pick events	A11; dd intake --from-inbox is the only pick writer	src/server/http.ts	open
+ 2026-10-16T16:40:00Z	budget	Hard caps live in code: N 5, one relaunch, two fix loops, two judge passes	A10; config cannot raise them	src/core/budget.ts	open
+ 2026-10-16T17:12:00Z	verify	npm test, tsc --noEmit, and selftest are green; War Room New pick and the drafted pick page were driven in a browser	SPEC 001 VERIFY steps	/opt/cursor/artifacts/war-room/big-board.png	tests green
++2026-10-17T14:20:00Z	timeline	One Record of event rules, checked with satisfies, is the only title and link table	A new event type has to name whether it opens or closes a run or tsc fails	src/core/timeline.ts	open
++2026-10-17T14:20:00Z	timeline	Status and stage come from reduce() and stageLabel at each event's effective time	The 48h go timeout and every other status stay in the reducer	src/core/timeline.ts	open
++2026-10-17T14:20:00Z	timeline	Clock skew clamps each event to the previous effective time	A bad or earlier ts cannot make a duration negative	src/core/timeline.ts	open
++2026-10-17T14:20:00Z	timeline	Agent links require a bc- uuid; every other agent id stays text	Selftest ids are not Cursor agent pages, and payload text is not a URL	src/core/timeline.ts	open
++2026-10-17T14:40:00Z	timeline	The timeline command is placed after show() and its import after the type imports	Pick 1 edits the import beside reduce and the body of show(); this spot merges beside those edits	src/cli/dd.ts	open
+diff --git a/src/cli/dd.ts b/src/cli/dd.ts
+index 6c7d39b..6a91de9 100644
+--- a/src/cli/dd.ts
++++ b/src/cli/dd.ts
+@@ -25,6 +25,8 @@ import {
+   type DraftEvent,
+   type EventType,
+   type Pick,
++  timeline,
++  type Timeline,
+ } from "../core/index.ts";
+ import { allocatePickId, commitPick, loadPicks, readEvents } from "../store/eventlog.ts";
+ import { inboxCursor, readInbox } from "../store/inbox.ts";
+@@ -368,6 +370,24 @@ async function show(paths: Paths, pickId: string | undefined): Promise<number> {
+   return 0;
+ }
+ 
++function timelineText(view: Timeline): string {
++  const header = `${view.pickId}  ${view.status}  ${view.elapsedText}  ${view.counts.total} runs`;
++  const lines = view.entries.map((entry) => `+${entry.sinceStartText}  ${entry.stage}  ${entry.title}`);
++  const relaunchWord = view.counts.relaunches === 1 ? "relaunch" : "relaunches";
++  const footer = `runs ${view.counts.total}: candidate ${view.counts.candidate} (${view.counts.relaunches} ${relaunchWord}), judge ${view.counts.judge}, graft ${view.counts.graft}, physical ${view.counts.physical}, fix ${view.counts.fix}`;
++  return [header, ...lines, footer].join("\n");
++}
++
++async function timelineCommand(paths: Paths, pickId: string | undefined): Promise<number> {
++  if (!pickId) throw new Exit("timeline needs a pick id");
++  const now = Date.now();
++  const { events } = await loadOne(paths, pickId, now);
++  const view = timeline(events, now);
++  if (!view) throw new Exit(`unknown pick ${pickId}`);
++  emit(paths, view, timelineText(view));
++  return 0;
++}
++
+ async function board(paths: Paths): Promise<number> {
+   const picks = await loadPicks(paths.dataDir);
+   const rows = picks.map((pick) => ({
+@@ -551,6 +571,7 @@ function help(): string {
+     "dd next <pickId>",
+     "dd record <pickId> <event> [--file path] [--cand c1] [--agent id]",
+     "dd show <pickId>",
++    "dd timeline <pickId>",
+     "dd board",
+     "dd brief <pickId> <candidate|judge|graft|physical> [cand]",
+     "dd lessons",
+@@ -579,6 +600,8 @@ export async function main(argv: string[]): Promise<number> {
+         return await recordCommand(paths, rest[0], rest[1], flags);
+       case "show":
+         return await show(paths, rest[0]);
++      case "timeline":
++        return await timelineCommand(paths, rest[0]);
+       case "board":
+         return await board(paths);
+       case "brief":
+diff --git a/src/core/index.ts b/src/core/index.ts
+index 8277fa6..7d07cd1 100644
+--- a/src/core/index.ts
++++ b/src/core/index.ts
+@@ -31,6 +31,18 @@ export type {
+ export { EVENT_TYPES, eventKey, isEventType } from "./events.ts";
+ export type { DraftEvent, EventType } from "./events.ts";
+ 
++export { agentUrl, formatDuration, timeline } from "./timeline.ts";
++export type {
++  RunCounts,
++  RunOutcome,
++  RunRole,
++  StageSpan,
++  Timeline,
++  TimelineEntry,
++  TimelineLink,
++  TimelineRun,
++} from "./timeline.ts";
++
+ export { asPickId, branchFor, formatPickId, isCandId, isPickId, pickIdPrefix } from "./ids.ts";
+ 
+ export { brandStoredTarget, loadTargets, parseTargetRepo } from "./target.ts";
+diff --git a/src/core/timeline.ts b/src/core/timeline.ts
+new file mode 100644
+index 0000000..6456d1c
+--- /dev/null
++++ b/src/core/timeline.ts
+@@ -0,0 +1,690 @@
++import { MAX_FIX_LOOPS } from "./budget.ts";
++import { isEventType, type DraftEvent, type EventType } from "./events.ts";
++import { isCandId } from "./ids.ts";
++import { reduce } from "./reducer.ts";
++import { GO_TIMEOUT_MS, stageLabel } from "./transitions.ts";
++import type { CandId, PickId, PickStatus } from "./types.ts";
++
++export type RunRole = "candidate" | "judge" | "graft" | "physical" | "fix";
++export type RunOutcome = "running" | "finished" | "errored" | "scored" | "pr_opened"
++  | "verified" | "not_verified" | "inconclusive" | "abandoned";
++
++export interface TimelineLink { kind: "agent" | "pr" | "commit"; label: string; href: string }
++
++export interface TimelineRun {
++  id: string;
++  label: string;
++  role: RunRole;
++  cand?: CandId;
++  attempt: number;
++  agentId?: string;
++  agentUrl: string | null;
++  startSeq: number;
++  endSeq: number | null;
++  startedAt: string;
++  endedAt: string | null;
++  durationMs: number;
++  durationText: string;
++  outcome: RunOutcome;
++}
++
++export interface TimelineEntry {
++  seq: number;
++  ts: string;
++  type: EventType;
++  by: string;
++  status: PickStatus;
++  stage: string;
++  title: string;
++  cand?: CandId;
++  run: { id: string; edge: "start" | "end" } | null;
++  sinceStartMs: number;
++  sinceStartText: string;
++  sincePrevMs: number;
++  links: TimelineLink[];
++}
++
++export interface StageSpan {
++  stage: string;
++  from: string;
++  to: string | null;
++  durationMs: number;
++  durationText: string;
++  firstSeq: number | null;
++  lastSeq: number | null;
++}
++
++export interface RunCounts {
++  total: number;
++  candidate: number;
++  judge: number;
++  graft: number;
++  physical: number;
++  fix: number;
++  relaunches: number;
++}
++
++export interface Timeline {
++  pickId: PickId;
++  status: PickStatus;
++  stage: string;
++  live: boolean;
++  startedAt: string;
++  endedAt: string | null;
++  elapsedMs: number;
++  elapsedText: string;
++  summary: string;
++  entries: TimelineEntry[];
++  runs: TimelineRun[];
++  stages: StageSpan[];
++  counts: RunCounts;
++}
++
++const AGENT_ID = /^bc-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
++const SHA40 = /^[0-9a-f]{40}$/;
++const TERMINAL = new Set<PickStatus>(["drafted", "failed", "cancelled"]);
++const TERMINAL_STAGE = new Set(["Draft Pick", "Failed", "Cancelled"]);
++
++export function formatDuration(ms: number): string {
++  if (!Number.isFinite(ms) || ms < 0) return "0s";
++  const seconds = Math.floor(ms / 1000);
++  if (seconds < 60) return `${seconds}s`;
++  const minutes = Math.floor(seconds / 60);
++  if (minutes < 60) return `${minutes}m`;
++  const hours = Math.floor(minutes / 60);
++  if (hours < 24) return `${hours}h ${String(minutes % 60).padStart(2, "0")}m`;
++  const days = Math.floor(hours / 24);
++  return `${days}d ${hours % 24}h`;
++}
++
++export function agentUrl(agentId: unknown): string | null {
++  if (typeof agentId !== "string" || !AGENT_ID.test(agentId)) return null;
++  return `https://cursor.com/agents/${agentId}`;
++}
++
++interface WorkingRun extends TimelineRun {
++  startMs: number;
++  candKey: string;
++}
++
++interface WorkingSpan {
++  stage: string;
++  fromMs: number;
++  firstSeq: number;
++  lastSeq: number;
++}
++
++interface TitleContext {
++  event: DraftEvent;
++  payload: Record<string, unknown>;
++  opened: WorkingRun | null;
++  closed: WorkingRun | null;
++  labels: Map<number, Record<string, string>>;
++  target: string;
++}
++
++type CloseKind = "candidate" | "judge" | "graft" | "verdict";
++
++interface Rule {
++  open: RunRole | null;
++  close: CloseKind | null;
++  outcome?: (ctx: TitleContext) => RunOutcome;
++  title: (ctx: TitleContext) => string;
++  links: (ctx: TitleContext) => TimelineLink[];
++}
++
++function record(value: unknown): Record<string, unknown> | null {
++  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
++  return value as Record<string, unknown>;
++}
++
++function str(value: unknown): string | null {
++  return typeof value === "string" && value.length > 0 ? value : null;
++}
++
++function integer(value: unknown): number | null {
++  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) return null;
++  return value;
++}
++
++function sentence(parts: Array<string | null | undefined | false>): string {
++  const text = parts
++    .filter((part): part is string => typeof part === "string" && part.trim() !== "")
++    .join(" ")
++    .replace(/[\r\n]+/g, " ")
++    .replace(/\s+/g, " ")
++    .trim();
++  if (!text) return "Recorded.";
++  return /[.!?]$/.test(text) ? text : `${text}.`;
++}
++
++function sha7(value: unknown): string | null {
++  if (typeof value !== "string" || !SHA40.test(value)) return null;
++  return value.slice(0, 7);
++}
++
++function testsAdded(payload: Record<string, unknown>): number | null {
++  const report = record(payload.report);
++  const tests = report ? record(report.tests) : null;
++  if (!tests || typeof tests.added !== "number" || !Number.isFinite(tests.added)) return null;
++  return tests.added;
++}
++
++function acceptanceCount(payload: Record<string, unknown>): number | null {
++  const report = record(payload.report);
++  const acceptance = report?.acceptance ?? payload.acceptance;
++  return Array.isArray(acceptance) ? acceptance.length : null;
++}
++
++function namedJudge(ctx: TitleContext): string | null {
++  const base = str(ctx.payload.base);
++  if (!base) return null;
++  if (isCandId(base)) return base;
++  const pass = integer(ctx.payload.pass) ?? (ctx.closed?.role === "judge" ? ctx.closed.attempt : null);
++  if (pass === null) return null;
++  const mapped = ctx.labels.get(pass)?.[base];
++  return mapped && isCandId(mapped) ? mapped : null;
++}
++
++function verdictOutcome(ctx: TitleContext): RunOutcome {
++  const verdict = record(ctx.payload.physical)?.verdict;
++  if (verdict === "VERIFIED") return "verified";
++  if (verdict === "NOT_VERIFIED") return "not_verified";
++  if (verdict === "INCONCLUSIVE") return "inconclusive";
++  return "inconclusive";
++}
++
++function noLinks(): TimelineLink[] {
++  return [];
++}
++
++function agentLink(ctx: TitleContext): TimelineLink[] {
++  if (!ctx.opened?.agentUrl) return [];
++  return [{ kind: "agent", label: `Agent ${ctx.opened.label}`, href: ctx.opened.agentUrl }];
++}
++
++function repoLinks(ctx: TitleContext, pr: unknown, sha: unknown): TimelineLink[] {
++  const links: TimelineLink[] = [];
++  const n = integer(pr);
++  if (n !== null) {
++    links.push({ kind: "pr", label: `PR #${n}`, href: `https://github.com/${ctx.target}/pull/${n}` });
++  }
++  if (typeof sha === "string" && SHA40.test(sha)) {
++    links.push({ kind: "commit", label: sha.slice(0, 7), href: `https://github.com/${ctx.target}/commit/${sha}` });
++  }
++  return links;
++}
++
++function iso(ms: number): string {
++  return new Date(ms).toISOString();
++}
++
++function effective(prev: number | null, ts: string): number {
++  const parsed = Date.parse(ts);
++  if (prev === null) return Number.isFinite(parsed) ? parsed : 0;
++  if (!Number.isFinite(parsed)) return prev;
++  return Math.max(prev, parsed);
++}
++
++function prior(runs: readonly WorkingRun[], role: RunRole, candKey = ""): number {
++  return runs.filter((run) => run.role === role && run.candKey === candKey).length;
++}
++
++function startRun(role: RunRole, event: DraftEvent, runs: readonly WorkingRun[], t: number): WorkingRun {
++  const payload = event.payload ?? {};
++  const agentId = typeof payload.agentId === "string" ? payload.agentId : undefined;
++  let attempt = 1;
++  let candKey = "";
++  let id = "";
++  let label = "";
++  if (role === "candidate") {
++    candKey = typeof payload.cand === "string" ? payload.cand : "";
++    attempt = integer(payload.attempt) ?? prior(runs, "candidate", candKey) + 1;
++    id = `${candKey || "candidate"}#${attempt}`;
++    label = candKey ? `${candKey} attempt ${attempt}` : `attempt ${attempt}`;
++  } else if (role === "judge") {
++    attempt = integer(payload.pass) ?? prior(runs, "judge") + 1;
++    id = `judge#${attempt}`;
++    label = `Film Room pass ${attempt}`;
++  } else if (role === "graft") {
++    attempt = integer(payload.attempt) ?? prior(runs, "graft") + 1;
++    id = `graft#${attempt}`;
++    label = "Trade";
++  } else if (role === "physical") {
++    attempt = integer(payload.attempt) ?? prior(runs, "physical") + 1;
++    id = `physical#${attempt}`;
++    label = "Physical";
++  } else {
++    attempt = integer(payload.loop) ?? prior(runs, "fix") + 1;
++    id = `fix#${attempt}`;
++    label = `Fix loop ${attempt}`;
++  }
++  const cand = isCandId(candKey) ? candKey : undefined;
++  return {
++    id,
++    label,
++    role,
++    ...(cand ? { cand } : {}),
++    attempt,
++    ...(agentId !== undefined ? { agentId } : {}),
++    agentUrl: agentUrl(agentId),
++    startSeq: event.seq,
++    endSeq: null,
++    startedAt: iso(t),
++    endedAt: null,
++    durationMs: 0,
++    durationText: formatDuration(0),
++    outcome: "running",
++    startMs: t,
++    candKey,
++  };
++}
++
++function seal(run: WorkingRun, endMs: number, endSeq: number | null, outcome: RunOutcome): void {
++  run.endSeq = endSeq;
++  run.endedAt = iso(endMs);
++  run.durationMs = Math.max(0, endMs - run.startMs);
++  run.durationText = formatDuration(run.durationMs);
++  run.outcome = outcome;
++}
++
++function takeOpen(open: WorkingRun[], event: DraftEvent, kind: CloseKind): WorkingRun | null {
++  const payload = event.payload ?? {};
++  let index = -1;
++  if (kind === "candidate") {
++    const cand = typeof payload.cand === "string" ? payload.cand : "";
++    if (!cand) return null;
++    index = open.findIndex((run) => run.role === "candidate" && run.candKey === cand);
++  } else if (kind === "judge") {
++    const pass = integer(payload.pass);
++    index = pass === null
++      ? open.findIndex((run) => run.role === "judge")
++      : open.findIndex((run) => run.role === "judge" && run.attempt === pass);
++  } else if (kind === "graft") {
++    index = open.findIndex((run) => run.role === "graft");
++  } else {
++    index = open.findIndex((run) => run.role === "physical" || run.role === "fix");
++  }
++  if (index < 0) return null;
++  return open.splice(index, 1)[0] ?? null;
++}
++
++function labelMap(payload: Record<string, unknown>): Record<string, string> {
++  const raw = record(payload.labels);
++  if (!raw) return {};
++  const labels: Record<string, string> = {};
++  for (const [key, value] of Object.entries(raw)) {
++    if (typeof value === "string") labels[key] = value;
++  }
++  return labels;
++}
++
++function publish(run: WorkingRun): TimelineRun {
++  return {
++    id: run.id,
++    label: run.label,
++    role: run.role,
++    ...(run.cand ? { cand: run.cand } : {}),
++    attempt: run.attempt,
++    ...(run.agentId !== undefined ? { agentId: run.agentId } : {}),
++    agentUrl: run.agentUrl,
++    startSeq: run.startSeq,
++    endSeq: run.endSeq,
++    startedAt: run.startedAt,
++    endedAt: run.endedAt,
++    durationMs: run.durationMs,
++    durationText: run.durationText,
++    outcome: run.outcome,
++  };
++}
++
++const RULES = {
++  pick_created: {
++    open: null,
++    close: null,
++    title: (ctx) => sentence(["Pick created", str(ctx.payload.source) ? `from ${str(ctx.payload.source)}` : null]),
++    links: noLinks,
++  },
++  scouting_report_written: {
++    open: null,
++    close: null,
++    title: (ctx) => {
++      const count = acceptanceCount(ctx.payload);
++      return sentence(["Scouting report written", count !== null ? `with ${count} acceptance` : null]);
++    },
++    links: noLinks,
++  },
++  scouting_approved: {
++    open: null,
++    close: null,
++    title: () => "Scouting approved.",
++    links: noLinks,
++  },
++  candidate_launched: {
++    open: "candidate",
++    close: null,
++    title: (ctx) => {
++      const attempt = ctx.opened?.attempt ?? integer(ctx.payload.attempt) ?? 1;
++      const relaunch = attempt >= 2;
++      return sentence([str(ctx.payload.cand), relaunch ? "relaunched" : "launched", relaunch ? `(attempt ${attempt})` : null]);
++    },
++    links: agentLink,
++  },
++  candidate_finished: {
++    open: null,
++    close: "candidate",
++    outcome: () => "finished",
++    title: (ctx) => {
++      const report = record(ctx.payload.report);
++      const sha = sha7(report?.headSha);
++      const tests = testsAdded(ctx.payload);
++      const head = [str(ctx.payload.cand), "finished", ctx.closed ? `in ${ctx.closed.durationText}` : null]
++        .filter((part): part is string => Boolean(part))
++        .join(" ");
++      const tail = [tests !== null ? `${tests} tests` : null, sha ? `commit ${sha}` : null]
++        .filter((part): part is string => Boolean(part));
++      return sentence([tail.length ? `${head}: ${tail.join(", ")}` : head]);
++    },
++    links: (ctx) => repoLinks(ctx, null, record(ctx.payload.report)?.headSha),
++  },
++  candidate_failed: {
++    open: null,
++    close: "candidate",
++    outcome: () => "errored",
++    title: (ctx) => sentence([str(ctx.payload.cand), "errored", ctx.closed ? `after ${ctx.closed.durationText}` : null]),
++    links: noLinks,
++  },
++  candidate_dropped: {
++    open: null,
++    close: null,
++    title: (ctx) => sentence([str(ctx.payload.cand), "dropped"]),
++    links: noLinks,
++  },
++  judge_launched: {
++    open: "judge",
++    close: null,
++    title: (ctx) => {
++      const pass = ctx.opened?.attempt ?? integer(ctx.payload.pass);
++      return sentence([
++        pass !== null ? `Film Room pass ${pass} started` : "Film Room started",
++        ctx.payload.reversed === true ? "reversed" : null,
++      ]);
++    },
++    links: agentLink,
++  },
++  judgement_recorded: {
++    open: null,
++    close: "judge",
++    outcome: () => "scored",
++    title: (ctx) => {
++      const pass = integer(ctx.payload.pass) ?? (ctx.closed?.role === "judge" ? ctx.closed.attempt : null);
++      const cards = Array.isArray(ctx.payload.cards) ? ctx.payload.cards.length : null;
++      const named = namedJudge(ctx);
++      let text = pass !== null ? `Film Room pass ${pass} scored` : "Scored";
++      if (cards !== null) text += ` ${cards} cards`;
++      if (named) text += `; judge named ${named}`;
++      return sentence([text]);
++    },
++    links: noLinks,
++  },
++  graft_launched: {
++    open: "graft",
++    close: null,
++    title: () => "Trade started.",
++    links: agentLink,
++  },
++  graft_recorded: {
++    open: null,
++    close: "graft",
++    outcome: () => "pr_opened",
++    title: (ctx) => {
++      const n = integer(ctx.payload.prNumber);
++      return sentence([n !== null ? `Trade opened #${n}` : "Trade opened"]);
++    },
++    links: (ctx) => repoLinks(ctx, ctx.payload.prNumber, ctx.payload.headSha),
++  },
++  physical_launched: {
++    open: "physical",
++    close: null,
++    title: (ctx) => sentence(["Physical started", ctx.payload.walkover === true ? "as a walkover" : null]),
++    links: agentLink,
++  },
++  verdict_recorded: {
++    open: null,
++    close: "verdict",
++    outcome: verdictOutcome,
++    title: (ctx) => {
++      const verdict = str(record(ctx.payload.physical)?.verdict);
++      return sentence(["Physical verdict", verdict, ctx.closed ? `after ${ctx.closed.durationText}` : null]);
++    },
++    links: (ctx) => {
++      const physical = record(ctx.payload.physical);
++      return repoLinks(ctx, physical?.prNumber, physical?.headSha);
++    },
++  },
++  fix_requested: {
++    open: "fix",
++    close: null,
++    title: (ctx) => {
++      const loop = ctx.opened?.attempt ?? integer(ctx.payload.loop);
++      return sentence([loop !== null ? `Fix loop ${loop} of ${MAX_FIX_LOOPS}` : `Fix loop of ${MAX_FIX_LOOPS}`]);
++    },
++    links: agentLink,
++  },
++  draft_pr_confirmed: {
++    open: null,
++    close: null,
++    title: (ctx) => {
++      const n = integer(ctx.payload.prNumber);
++      return sentence([n !== null ? `Confirmed draft #${n}` : "Confirmed draft"]);
++    },
++    links: (ctx) => repoLinks(ctx, ctx.payload.prNumber, null),
++  },
++  pick_failed: {
++    open: null,
++    close: null,
++    title: (ctx) => sentence(["Pick failed", str(ctx.payload.reason) ? `(${str(ctx.payload.reason)})` : null]),
++    links: noLinks,
++  },
++  pick_cancelled: {
++    open: null,
++    close: null,
++    title: () => "Cancelled.",
++    links: noLinks,
++  },
++  lesson_recorded: {
++    open: null,
++    close: null,
++    title: (ctx) => {
++      const topic = str(ctx.payload.topic);
++      const text = str(ctx.payload.text);
++      if (topic && text) return sentence([`${topic}: ${text}`]);
++      return sentence([topic, text, "Lesson kept"]);
++    },
++    links: noLinks,
++  },
++} satisfies Record<EventType, Rule>;
++
++interface Acc {
++  prevT: number | null;
++  t1: number;
++  times: number[];
++  entries: TimelineEntry[];
++  runs: WorkingRun[];
++  open: WorkingRun[];
++  labels: Map<number, Record<string, string>>;
++  spans: WorkingSpan[];
++}
++
++function finishSpans(
++  spans: readonly WorkingSpan[],
++  live: boolean,
++  endedAtMs: number | null,
++  now: number,
++  finalStage: string,
++): StageSpan[] {
++  const out: StageSpan[] = spans.map((span, index) => {
++    const next = spans[index + 1];
++    if (next) {
++      const durationMs = Math.max(0, next.fromMs - span.fromMs);
++      return {
++        stage: span.stage,
++        from: iso(span.fromMs),
++        to: iso(next.fromMs),
++        durationMs,
++        durationText: formatDuration(durationMs),
++        firstSeq: span.firstSeq,
++        lastSeq: span.lastSeq,
++      };
++    }
++    const terminalStage = TERMINAL_STAGE.has(span.stage);
++    const durationMs = !terminalStage && live ? Math.max(0, now - span.fromMs) : 0;
++    return {
++      stage: span.stage,
++      from: iso(span.fromMs),
++      to: null,
++      durationMs,
++      durationText: formatDuration(durationMs),
++      firstSeq: span.firstSeq,
++      lastSeq: span.lastSeq,
++    };
++  });
++  const last = out[out.length - 1];
++  const lastWork = spans[spans.length - 1];
++  if (last && lastWork && last.stage !== finalStage) {
++    if (endedAtMs !== null) {
++      last.to = iso(endedAtMs);
++      last.durationMs = Math.max(0, endedAtMs - lastWork.fromMs);
++      last.durationText = formatDuration(last.durationMs);
++    }
++    out.push({
++      stage: finalStage,
++      from: endedAtMs !== null ? iso(endedAtMs) : last.from,
++      to: null,
++      durationMs: 0,
++      durationText: formatDuration(0),
++      firstSeq: null,
++      lastSeq: null,
++    });
++  }
++  return out;
++}
++
++export function timeline(events: readonly DraftEvent[], now: number): Timeline | null {
++  const ordered = [...events].sort((a, b) => a.seq - b.seq);
++  const pick = reduce(ordered, now);
++  if (!pick) return null;
++  const target = pick.target;
++
++  const folded = ordered.reduce<Acc>((acc, event, index) => {
++    const t = effective(acc.prevT, event.ts);
++    if (acc.times.length === 0) acc.t1 = t;
++    const sincePrevMs = acc.prevT === null ? 0 : Math.max(0, t - acc.prevT);
++    const sinceStartMs = Math.max(0, t - acc.t1);
++    const prefix = reduce(ordered.slice(0, index + 1), t);
++    const status: PickStatus = prefix?.status ?? "intake";
++    const stage = stageLabel(status);
++    const rule = isEventType(event.type) ? RULES[event.type] : null;
++    const payload = event.payload ?? {};
++    let opened: WorkingRun | null = null;
++    let closed: WorkingRun | null = null;
++    if (rule?.open) {
++      opened = startRun(rule.open, event, acc.runs, t);
++      acc.runs.push(opened);
++      acc.open.push(opened);
++      if (opened.role === "judge") acc.labels.set(opened.attempt, labelMap(payload));
++    }
++    if (rule?.close) {
++      closed = takeOpen(acc.open, event, rule.close);
++      if (closed) seal(closed, t, event.seq, rule.outcome?.({ event, payload, opened, closed, labels: acc.labels, target }) ?? "finished");
++    }
++    const ctx: TitleContext = { event, payload, opened, closed, labels: acc.labels, target };
++    const title = rule ? rule.title(ctx) : "Unrecognized event";
++    const links = rule ? rule.links(ctx) : [];
++    const candText = typeof payload.cand === "string" ? payload.cand : "";
++    const entry: TimelineEntry = {
++      seq: event.seq,
++      ts: event.ts,
++      type: event.type,
++      by: event.by,
++      status,
++      stage,
++      title,
++      ...(isCandId(candText) ? { cand: candText } : {}),
++      run: opened ? { id: opened.id, edge: "start" } : closed ? { id: closed.id, edge: "end" } : null,
++      sinceStartMs,
++      sinceStartText: formatDuration(sinceStartMs),
++      sincePrevMs,
++      links,
++    };
++    acc.entries.push(entry);
++    acc.times.push(t);
++    const span = acc.spans[acc.spans.length - 1];
++    if (!span || span.stage !== stage) {
++      acc.spans.push({ stage, fromMs: t, firstSeq: event.seq, lastSeq: event.seq });
++    } else {
++      span.lastSeq = event.seq;
++    }
++    acc.prevT = t;
++    return acc;
++  }, {
++    prevT: null,
++    t1: 0,
++    times: [],
++    entries: [],
++    runs: [],
++    open: [],
++    labels: new Map(),
++    spans: [],
++  });
++
++  const live = !TERMINAL.has(pick.status);
++  let endedAtMs: number | null = null;
++  if (!live) {
++    const terminalAt = folded.entries.findIndex((entry) => TERMINAL.has(entry.status));
++    if (terminalAt >= 0) endedAtMs = folded.times[terminalAt] ?? null;
++    else if (pick.reportAt) {
++      const reportAt = Date.parse(pick.reportAt);
++      if (Number.isFinite(reportAt)) endedAtMs = reportAt + GO_TIMEOUT_MS;
++    }
++  }
++  for (const run of folded.open) {
++    if (live) {
++      run.endedAt = null;
++      run.endSeq = null;
++      run.outcome = "running";
++      run.durationMs = Math.max(0, now - run.startMs);
++      run.durationText = formatDuration(run.durationMs);
++    } else {
++      seal(run, endedAtMs ?? folded.t1, null, "abandoned");
++    }
++  }
++
++  const counts: RunCounts = {
++    total: folded.runs.length,
++    candidate: folded.runs.filter((run) => run.role === "candidate").length,
++    judge: folded.runs.filter((run) => run.role === "judge").length,
++    graft: folded.runs.filter((run) => run.role === "graft").length,
++    physical: folded.runs.filter((run) => run.role === "physical").length,
++    fix: folded.runs.filter((run) => run.role === "fix").length,
++    relaunches: folded.runs.filter((run) => run.role === "candidate" && run.attempt >= 2).length,
++  };
++  const elapsedMs = Math.max(0, (endedAtMs ?? (live ? now : folded.t1)) - folded.t1);
++  const elapsedText = formatDuration(elapsedMs);
++  const runWord = counts.total === 1 ? "run" : "runs";
++  return {
++    pickId: pick.id,
++    status: pick.status,
++    stage: stageLabel(pick.status),
++    live,
++    startedAt: iso(folded.t1),
++    endedAt: endedAtMs === null ? null : iso(endedAtMs),
++    elapsedMs,
++    elapsedText,
++    summary: `${pick.status} · ${elapsedText} · ${counts.total} ${runWord}`,
++    entries: folded.entries,
++    runs: folded.runs.map(publish),
++    stages: finishSpans(folded.spans, live, endedAtMs, now, stageLabel(pick.status)),
++    counts,
++  };
++}
+diff --git a/src/server/http.ts b/src/server/http.ts
+index fb59d93..b2e46bf 100644
+--- a/src/server/http.ts
++++ b/src/server/http.ts
+@@ -12,6 +12,7 @@ import {
+   reduce,
+   screenIdea,
+   stageLabel,
++  timeline,
+   type Config,
+   type Pick,
+ } from "../core/index.ts";
+@@ -55,35 +56,7 @@ async function readBody(req: IncomingMessage): Promise<string> {
+   return Buffer.concat(chunks).toString("utf8");
+ }
+ 
+-function summarizeEvent(event: DraftEvent): { seq: number; ts: string; type: string; by: string; summary: string } {
+-  const cand = typeof event.payload.cand === "string" ? event.payload.cand : "";
+-  const reason = typeof event.payload.reason === "string" ? event.payload.reason : "";
+-  let summary: string = event.type;
+-  if (event.type === "pick_created") summary = "Pick created";
+-  if (event.type === "scouting_report_written") summary = "Scouting report written";
+-  if (event.type === "scouting_approved") summary = "Scouting approved";
+-  if (event.type === "candidate_launched") summary = `Launched ${cand}`;
+-  if (event.type === "candidate_finished") summary = `${cand} finished`;
+-  if (event.type === "candidate_failed") summary = `${cand} errored`;
+-  if (event.type === "candidate_dropped") summary = `${cand} dropped`;
+-  if (event.type === "judge_launched") summary = `Film Room pass ${String(event.payload.pass ?? "")}`;
+-  if (event.type === "judgement_recorded") summary = "Scorecard recorded";
+-  if (event.type === "graft_launched") summary = "Trade started";
+-  if (event.type === "graft_recorded") summary = `Draft PR #${String(event.payload.prNumber ?? "")}`;
+-  if (event.type === "physical_launched") summary = event.payload.walkover === true ? "Physical started (walkover)" : "Physical started";
+-  if (event.type === "verdict_recorded") {
+-    const physical = event.payload.physical as { verdict?: string } | undefined;
+-    summary = `Verdict ${physical?.verdict ?? ""}`;
+-  }
+-  if (event.type === "fix_requested") summary = `Fix ${String(event.payload.loop ?? "")} requested`;
+-  if (event.type === "draft_pr_confirmed") summary = "Draft PR confirmed";
+-  if (event.type === "pick_failed") summary = `Failed (${reason})`;
+-  if (event.type === "pick_cancelled") summary = "Cancelled";
+-  if (event.type === "lesson_recorded") summary = `Lesson: ${String(event.payload.topic ?? "")}`;
+-  return { seq: event.seq, ts: event.ts, type: event.type, by: event.by, summary };
+-}
+-
+-function pickView(pick: Pick, events: DraftEvent[]) {
++function pickView(pick: Pick, events: DraftEvent[], now: number) {
+   return {
+     id: pick.id,
+     idea: pick.idea,
+@@ -107,7 +80,7 @@ function pickView(pick: Pick, events: DraftEvent[]) {
+     walkover: pick.walkover,
+     fixLoops: pick.fixLoops,
+     lessons: pick.lessons,
+-    events: events.map(summarizeEvent),
++    timeline: timeline(events, now),
+   };
+ }
+ 
+@@ -209,13 +182,14 @@ export async function startServer(options: ServerOptions): Promise<{
+         send(res, 404, { error: "pick not found" });
+         return;
+       }
++      const now = Date.now();
+       const events = await readEvents(options.dataDir, id);
+-      const pick = reduce(events, Date.now());
++      const pick = reduce(events, now);
+       if (!pick) {
+         send(res, 404, { error: "pick not found" });
+         return;
+       }
+-      send(res, 200, pickView(pick, events));
++      send(res, 200, pickView(pick, events, now));
+       return;
+     }
+ 
+@@ -277,7 +251,8 @@ export async function startServer(options: ServerOptions): Promise<{
+       return;
+     }
+ 
+-    if (req.method === "GET" && (path === "/" || path === "/index.html" || path === "/app.js" || path === "/styles.css")) {
++    const staticPaths = ["/", "/index.html", "/app.js", "/styles.css", "/timeline.js", "/timeline.css"];
++    if (req.method === "GET" && staticPaths.includes(path)) {
+       const file = path === "/" || path === "/index.html" ? "index.html" : path.slice(1);
+       const full = normalize(join(UI_DIR, file));
+       if (!full.startsWith(UI_DIR)) {
+diff --git a/src/ui/app.js b/src/ui/app.js
+index 66488bf..99c509d 100644
+--- a/src/ui/app.js
++++ b/src/ui/app.js
+@@ -163,9 +163,7 @@ function pickView(pick) {
+     physicalBits.push(el("p", { class: "empty" }, ["Physical has not run."]));
+   }
+ 
+-  const log = pick.events?.length
+-    ? pick.events.map((event) => el("li", {}, [`${event.ts} ${event.summary}`]))
+-    : [el("li", { class: "empty" }, ["No events."])];
++  const log = decisionLog(pick.timeline);
+ 
+   const swap = pick.judgement
+     ? `Base ${pick.judgement.base}. swapConsistent ${String(pick.judgement.swapConsistent)}.`
+@@ -196,7 +194,7 @@ function pickView(pick) {
+     ]),
+     section("Trades", [el("ul", {}, trades)]),
+     section("Physical", physicalBits),
+-    section("Decision log", [el("ol", { class: "events" }, log)]),
++    section("Decision log", log),
+   ]);
+ }
+ 
+diff --git a/src/ui/index.html b/src/ui/index.html
+index 556c8e1..3f01087 100644
+--- a/src/ui/index.html
++++ b/src/ui/index.html
+@@ -5,6 +5,7 @@
+   <meta name="viewport" content="width=device-width, initial-scale=1">
+   <title>Draft Day War Room</title>
+   <link rel="stylesheet" href="/styles.css">
++  <link rel="stylesheet" href="/timeline.css">
+ </head>
+ <body>
+   <header class="top">
+@@ -13,6 +14,7 @@ <h1>War Room</h1>
+     <p class="lede">Idea in. Verified draft pull request out. Nothing merges from here.</p>
+   </header>
+   <main id="app"></main>
++  <script src="/timeline.js"></script>
+   <script src="/app.js"></script>
+ </body>
+ </html>
+diff --git a/src/ui/timeline.css b/src/ui/timeline.css
+new file mode 100644
+index 0000000..dcaad96
+--- /dev/null
++++ b/src/ui/timeline.css
+@@ -0,0 +1,38 @@
++.timeline-summary,
++.timeline-stages,
++.timeline-events,
++.timeline-runs td,
++.timeline-runs th {
++  overflow-wrap: anywhere;
++}
++
++.timeline-stages,
++.timeline-events {
++  margin: 8px 0;
++  padding-left: 18px;
++}
++
++.timeline-events ul {
++  margin: 0 0 8px;
++  padding-left: 18px;
++}
++
++.timeline-events h3 {
++  margin: 8px 0 4px;
++  font-size: 16px;
++}
++
++.timeline-runs {
++  width: 100%;
++  max-width: 100%;
++  overflow-x: auto;
++}
++
++.timeline-runs table {
++  width: max-content;
++  min-width: 100%;
++}
++
++.timeline-runs a {
++  white-space: nowrap;
++}
+diff --git a/src/ui/timeline.js b/src/ui/timeline.js
+new file mode 100644
+index 0000000..93c6613
+--- /dev/null
++++ b/src/ui/timeline.js
+@@ -0,0 +1,86 @@
++function timelineEl(tag, attrs, children) {
++  const node = document.createElement(tag);
++  for (const [key, value] of Object.entries(attrs || {})) {
++    if (value === undefined || value === null) continue;
++    if (key === "class") node.className = value;
++    else node.setAttribute(key, String(value));
++  }
++  for (const child of children || []) {
++    if (child === undefined || child === null) continue;
++    node.append(child instanceof Node ? child : document.createTextNode(String(child)));
++  }
++  return node;
++}
++
++const TERMINAL_STAGES = new Set(["Draft Pick", "Failed", "Cancelled"]);
++
++function startedClock(iso) {
++  const date = new Date(iso);
++  if (Number.isNaN(date.getTime())) return String(iso ?? "");
++  return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
++}
++
++function linkEl(link) {
++  return timelineEl("a", {
++    href: link.href,
++    target: "_blank",
++    rel: "noopener noreferrer",
++  }, [link.label]);
++}
++
++function stageList(stages) {
++  return timelineEl("ul", { "aria-label": "Stages", class: "timeline-stages" }, stages.map((span) => {
++    const text = TERMINAL_STAGES.has(span.stage) ? span.stage : `${span.stage} ${span.durationText}`;
++    return timelineEl("li", {}, [text]);
++  }));
++}
++
++function runTable(runs) {
++  const head = timelineEl("tr", {}, ["Run", "Agent", "Started", "Duration", "Outcome"].map((name) => timelineEl("th", {}, [name])));
++  const rows = runs.map((run) => {
++    const agent = run.agentUrl ? linkEl({ href: run.agentUrl, label: `Agent ${run.label}` }) : (run.agentId || "");
++    return timelineEl("tr", {}, [
++      timelineEl("td", {}, [run.label]),
++      timelineEl("td", {}, [agent]),
++      timelineEl("td", {}, [startedClock(run.startedAt)]),
++      timelineEl("td", {}, [run.durationText]),
++      timelineEl("td", {}, [run.outcome]),
++    ]);
++  });
++  return timelineEl("div", { class: "timeline-runs" }, [
++    timelineEl("table", { "aria-label": "Runs" }, [
++      timelineEl("thead", {}, [head]),
++      timelineEl("tbody", {}, rows),
++    ]),
++  ]);
++}
++
++function eventList(entries) {
++  const list = timelineEl("ul", { "aria-label": "Events", class: "timeline-events" });
++  let stage = "";
++  let items = null;
++  for (const entry of entries) {
++    if (!items || stage !== entry.stage) {
++      stage = entry.stage;
++      items = timelineEl("ul", {});
++      list.append(timelineEl("li", {}, [timelineEl("h3", {}, [entry.stage]), items]));
++    }
++    const row = timelineEl("li", {}, [`+${entry.sinceStartText} ${entry.title}`]);
++    for (const link of entry.links || []) {
++      row.append(document.createTextNode(" "));
++      row.append(linkEl(link));
++    }
++    items.append(row);
++  }
++  return list;
++}
++
++function decisionLog(timeline) {
++  if (!timeline) return [timelineEl("p", { class: "empty" }, ["No events."])];
++  return [
++    timelineEl("p", { class: "timeline-summary" }, [timeline.summary]),
++    stageList(timeline.stages || []),
++    runTable(timeline.runs || []),
++    eventList(timeline.entries || []),
++  ];
++}
+diff --git a/test/fixtures/timeline/p-20261010-07.events.jsonl b/test/fixtures/timeline/p-20261010-07.events.jsonl
+new file mode 100644
+index 0000000..eed0778
+--- /dev/null
++++ b/test/fixtures/timeline/p-20261010-07.events.jsonl
+@@ -0,0 +1,23 @@
++{"seq":1,"ts":"2026-10-10T14:00:00.000Z","type":"pick_created","by":"dd","key":"pick","payload":{"id":"p-20261010-07","idea":"Show the pick timeline","source":"chat","target":"BoydVC/draft-day","n":3,"approval":"ask"}}
++{"seq":2,"ts":"2026-10-10T14:06:00.000Z","type":"scouting_report_written","by":"dd","key":"report","payload":{"report":{"restatement":"You want each pick to read like a game log.","acceptance":[{"id":"T1","when":"a pick page is open","shall":"show its decision log"},{"id":"T2","when":"a run ends","shall":"show how long it took"}],"rubric":[{"id":"facts","name":"Facts","weight":3,"howToGrade":"check the run table"},{"id":"clarity","name":"Clarity","weight":2,"howToGrade":"read it on a phone"},{"id":"tests","name":"Tests","weight":1,"howToGrade":"tests pass"}],"designSketch":"A decision log under the pick.","verifyPlan":["Open the sample pick."],"safetyFact":"Links only go to Cursor agents or this repo.","angles":["simplest thing that passes","extensibility first","tests first, then code"],"forbidden":["Do not merge."]}}}
++{"seq":3,"ts":"2026-10-10T14:20:00.000Z","type":"scouting_approved","by":"dd","key":"approved","payload":{"via":"human"}}
++{"seq":4,"ts":"2026-10-10T14:21:00.000Z","type":"candidate_launched","by":"dd","key":"launch:c1:1","payload":{"cand":"c1","attempt":1,"agentId":"bc-00000000-0000-4000-8000-000000000101","branch":"dd/p-20261010-07/c1"}}
++{"seq":5,"ts":"2026-10-10T14:21:00.000Z","type":"candidate_launched","by":"dd","key":"launch:c2:1","payload":{"cand":"c2","attempt":1,"agentId":"bc-00000000-0000-4000-8000-000000000201","branch":"dd/p-20261010-07/c2"}}
++{"seq":6,"ts":"2026-10-10T14:21:00.000Z","type":"candidate_launched","by":"dd","key":"launch:c3:1","payload":{"cand":"c3","attempt":1,"agentId":"bc-00000000-0000-4000-8000-000000000301","branch":"dd/p-20261010-07/c3"}}
++{"seq":7,"ts":"2026-10-10T14:30:00.000Z","type":"candidate_failed","by":"dd","key":"fail:c1:1","payload":{"cand":"c1","attempt":1}}
++{"seq":8,"ts":"2026-10-10T14:31:00.000Z","type":"candidate_launched","by":"dd","key":"launch:c1:2","payload":{"cand":"c1","attempt":2,"agentId":"bc-00000000-0000-4000-8000-000000000102","branch":"dd/p-20261010-07/c1"}}
++{"seq":9,"ts":"2026-10-10T15:13:00.000Z","type":"candidate_finished","by":"dd","key":"finish:c2:1","payload":{"cand":"c2","attempt":1,"report":{"branch":"dd/p-20261010-07/c2","headSha":"2222222222222222222222222222222222222222","summary":"c2 decision log","commands":[{"cmd":"npm test","exit":0}],"tests":{"added":6,"passing":true},"screenshots":["c2-timeline.png"],"risks":[]}}}
++{"seq":10,"ts":"2026-10-10T15:18:00.000Z","type":"candidate_finished","by":"dd","key":"finish:c1:2","payload":{"cand":"c1","attempt":2,"report":{"branch":"dd/p-20261010-07/c1","headSha":"1111111111111111111111111111111111111111","summary":"c1 decision log","commands":[{"cmd":"npm test","exit":0}],"tests":{"added":5,"passing":true},"screenshots":["c1-timeline.png"],"risks":[]}}}
++{"seq":11,"ts":"2026-10-10T15:31:00.000Z","type":"candidate_finished","by":"dd","key":"finish:c3:1","payload":{"cand":"c3","attempt":1,"report":{"branch":"dd/p-20261010-07/c3","headSha":"3333333333333333333333333333333333333333","summary":"c3 decision log","commands":[{"cmd":"npm test","exit":0}],"tests":{"added":9,"passing":true},"screenshots":["c3-timeline.png"],"risks":["one extra helper"]}}}
++{"seq":12,"ts":"2026-10-10T15:32:00.000Z","type":"judge_launched","by":"dd","key":"judge-launch:1","payload":{"pass":1,"order":["c3","c1","c2"],"labels":{"A":"c3","B":"c1","C":"c2"},"reversed":false,"agentId":"bc-00000000-0000-4000-8000-000000000401"}}
++{"seq":13,"ts":"2026-10-10T16:12:00.000Z","type":"judgement_recorded","by":"dd","key":"judgement:1","payload":{"pass":1,"order":["A","B","C"],"cards":[{"label":"A","gates":{"build":"pass","tests":"pass","journey":"pass"},"crossTests":{"passed":11,"total":12},"scores":[{"criterionId":"facts","score":3,"evidence":"A facts: npm test"},{"criterionId":"clarity","score":3,"evidence":"A clarity: npm test"},{"criterionId":"tests","score":3,"evidence":"A tests: npm test"}]},{"label":"B","gates":{"build":"pass","tests":"pass","journey":"pass"},"crossTests":{"passed":9,"total":12},"scores":[{"criterionId":"facts","score":2,"evidence":"B facts: npm test"},{"criterionId":"clarity","score":2,"evidence":"B clarity: npm test"},{"criterionId":"tests","score":2,"evidence":"B tests: npm test"}]},{"label":"C","gates":{"build":"pass","tests":"pass","journey":"pass"},"crossTests":{"passed":12,"total":12},"scores":[{"criterionId":"facts","score":3,"evidence":"C facts: npm test"},{"criterionId":"clarity","score":3,"evidence":"C clarity: npm test"},{"criterionId":"tests","score":4,"evidence":"C tests: npm test"}]}],"base":"C","runnerUps":["A","B"],"trades":[],"swapConsistent":null,"secondRead":"agree","note":""}}
++{"seq":14,"ts":"2026-10-10T16:13:00.000Z","type":"judge_launched","by":"dd","key":"judge-launch:2","payload":{"pass":2,"order":["c2","c1","c3"],"labels":{"A":"c2","B":"c1","C":"c3"},"reversed":true,"agentId":"bc-00000000-0000-4000-8000-000000000402"}}
++{"seq":15,"ts":"2026-10-10T16:48:00.000Z","type":"judgement_recorded","by":"dd","key":"judgement:2","payload":{"pass":2,"order":["A","B","C"],"cards":[{"label":"A","gates":{"build":"pass","tests":"pass","journey":"pass"},"crossTests":{"passed":12,"total":12},"scores":[{"criterionId":"facts","score":3,"evidence":"A facts: npm test"},{"criterionId":"clarity","score":4,"evidence":"A clarity: npm test"},{"criterionId":"tests","score":3,"evidence":"A tests: npm test"}]},{"label":"B","gates":{"build":"pass","tests":"pass","journey":"pass"},"crossTests":{"passed":9,"total":12},"scores":[{"criterionId":"facts","score":2,"evidence":"B facts: npm test"},{"criterionId":"clarity","score":2,"evidence":"B clarity: npm test"},{"criterionId":"tests","score":2,"evidence":"B tests: npm test"}]},{"label":"C","gates":{"build":"pass","tests":"pass","journey":"pass"},"crossTests":{"passed":11,"total":12},"scores":[{"criterionId":"facts","score":3,"evidence":"C facts: npm test"},{"criterionId":"clarity","score":3,"evidence":"C clarity: npm test"},{"criterionId":"tests","score":3,"evidence":"C tests: npm test"}]}],"base":"A","runnerUps":["C","B"],"trades":[{"from":"C","what":"stage strip","pointers":["src/ui/timeline.js:12-40"],"why":"reads well on a phone"}],"swapConsistent":null,"secondRead":"agree","note":""}}
++{"seq":16,"ts":"2026-10-10T16:50:00.000Z","type":"graft_launched","by":"dd","key":"graft-launch","payload":{"agentId":"bc-00000000-0000-4000-8000-000000000501"}}
++{"seq":17,"ts":"2026-10-10T17:45:00.000Z","type":"graft_recorded","by":"dd","key":"graft","payload":{"prNumber":42,"headSha":"4444444444444444444444444444444444444444","summary":"Base c2 plus one trade from c3"}}
++{"seq":18,"ts":"2026-10-10T17:46:00.000Z","type":"physical_launched","by":"dd","key":"physical-launch:1","payload":{"attempt":1,"walkover":false,"agentId":"bc-00000000-0000-4000-8000-000000000601"}}
++{"seq":19,"ts":"2026-10-10T18:16:00.000Z","type":"verdict_recorded","by":"dd","key":"verdict:1","payload":{"attempt":1,"headSha":"4444444444444444444444444444444444444444","physical":{"prNumber":42,"headSha":"4444444444444444444444444444444444444444","verdict":"NOT_VERIFIED","ledger":"verifier-failed","certainty":2,"evidence":["the Runs table had no relaunch row"],"fixLoops":0}}}
++{"seq":20,"ts":"2026-10-10T18:17:00.000Z","type":"fix_requested","by":"dd","key":"fix:1","payload":{"loop":1,"agentId":"bc-00000000-0000-4000-8000-000000000501"}}
++{"seq":21,"ts":"2026-10-10T18:42:00.000Z","type":"verdict_recorded","by":"dd","key":"verdict:2","payload":{"attempt":2,"headSha":"5555555555555555555555555555555555555555","physical":{"prNumber":42,"headSha":"5555555555555555555555555555555555555555","verdict":"VERIFIED","ledger":"live-ui-verified","certainty":4,"evidence":["timeline-drafted.png"],"fixLoops":1}}}
++{"seq":22,"ts":"2026-10-10T18:43:00.000Z","type":"draft_pr_confirmed","by":"dd","key":"pr:42","payload":{"prNumber":42}}
++{"seq":23,"ts":"2026-10-10T18:50:00.000Z","type":"lesson_recorded","by":"dd","key":"lesson:combine:c1 errored on its first launch; the relaunch finished in 47m","payload":{"topic":"combine","text":"c1 errored on its first launch; the relaunch finished in 47m"}}
+diff --git a/test/timeline.test.ts b/test/timeline.test.ts
+new file mode 100644
+index 0000000..44d372f
+--- /dev/null
++++ b/test/timeline.test.ts
+@@ -0,0 +1,589 @@
++import assert from "node:assert/strict";
++import { execFile } from "node:child_process";
++import { createHash } from "node:crypto";
++import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
++import { tmpdir } from "node:os";
++import { join } from "node:path";
++import { test } from "node:test";
++import { promisify } from "node:util";
++import {
++  GO_TIMEOUT_MS,
++  agentUrl,
++  formatDuration,
++  reduce,
++  stageLabel,
++  timeline,
++  type DraftEvent,
++  type EventType,
++  type Timeline,
++} from "../src/core/index.ts";
++import { startServer } from "../src/server/http.ts";
++
++const exec = promisify(execFile);
++const root = process.cwd();
++const FIXTURE = "test/fixtures/timeline/p-20261010-07.events.jsonl";
++const FIXTURE_SHA = "a7eff1dd0a2f8c0c0cae196ffe93a9927dcb93a0d626b63dc6a95391b9ab8e71";
++const SAMPLE_NOW = Date.parse("2026-10-10T18:43:00.000Z");
++
++async function sampleEvents(): Promise<DraftEvent[]> {
++  const raw = await readFile(FIXTURE, "utf8");
++  return raw.split("\n").filter((line) => line.trim()).map((line) => JSON.parse(line) as DraftEvent);
++}
++
++function must(view: Timeline | null): Timeline {
++  assert.ok(view);
++  return view;
++}
++
++function ev(type: EventType, payload: Record<string, unknown>, ts: string, seq: number): DraftEvent {
++  return { seq, ts, type, by: "test", key: `${type}:${seq}`, payload };
++}
++
++function created(seq = 1, ts = "2026-10-10T14:00:00.000Z", extra: Record<string, unknown> = {}): DraftEvent {
++  return ev("pick_created", {
++    id: "p-20261010-07",
++    idea: "Show the pick timeline",
++    source: "chat",
++    target: "BoydVC/draft-day",
++    n: 3,
++    approval: "ask",
++    ...extra,
++  }, ts, seq);
++}
++
++async function dd(args: string[]) {
++  try {
++    const { stdout, stderr } = await exec(process.execPath, ["--experimental-strip-types", "src/cli/dd.ts", ...args], {
++      cwd: root,
++      env: { ...process.env, NODE_NO_WARNINGS: "1" },
++    });
++    return { code: 0, stdout, stderr };
++  } catch (error) {
++    const err = error as { code?: number; stdout?: string; stderr?: string };
++    return { code: typeof err.code === "number" ? err.code : 1, stdout: err.stdout ?? "", stderr: err.stderr ?? "" };
++  }
++}
++
++function effectiveTimes(events: readonly DraftEvent[]): number[] {
++  const ordered = [...events].sort((a, b) => a.seq - b.seq);
++  const times: number[] = [];
++  let prev: number | null = null;
++  for (const event of ordered) {
++    const parsed = Date.parse(event.ts);
++    const t: number = prev === null
++      ? (Number.isFinite(parsed) ? parsed : 0)
++      : (!Number.isFinite(parsed) ? prev : Math.max(prev, parsed));
++    times.push(t);
++    prev = t;
++  }
++  return times;
++}
++
++function assertClock(view: Timeline) {
++  const walk = (value: unknown): void => {
++    if (!value || typeof value !== "object") return;
++    if (Array.isArray(value)) {
++      for (const item of value) walk(item);
++      return;
++    }
++    const record = value as Record<string, unknown>;
++    for (const [key, child] of Object.entries(record)) {
++      if (key.endsWith("Ms")) {
++        assert.equal(typeof child, "number");
++        assert.equal(Number.isFinite(child), true);
++        assert.ok((child as number) >= 0, key);
++        const textKey = key.replace(/Ms$/, "Text");
++        if (textKey in record) assert.equal(record[textKey], formatDuration(child as number));
++      } else if (child && typeof child === "object") walk(child);
++    }
++  };
++  walk(view);
++}
++
++test("T1 formatDuration table", () => {
++  const rows: Array<[number, string]> = [
++    [0, "0s"],
++    [999, "0s"],
++    [-5, "0s"],
++    [Number.NaN, "0s"],
++    [Number.POSITIVE_INFINITY, "0s"],
++    [59_999, "59s"],
++    [60_000, "1m"],
++    [3_599_999, "59m"],
++    [3_600_000, "1h 00m"],
++    [3_900_000, "1h 05m"],
++    [86_399_999, "23h 59m"],
++    [86_400_000, "1d 0h"],
++    [90_000_000, "1d 1h"],
++  ];
++  for (const [ms, text] of rows) assert.equal(formatDuration(ms), text, String(ms));
++});
++
++test("T2 sample runs", async () => {
++  const raw = await readFile(FIXTURE);
++  assert.equal(createHash("sha256").update(raw).digest("hex"), FIXTURE_SHA);
++  const view = must(timeline(await sampleEvents(), SAMPLE_NOW));
++  const expected = [
++    ["c1#1", "c1 attempt 1", "errored", "9m", 4, 7],
++    ["c2#1", "c2 attempt 1", "finished", "52m", 5, 9],
++    ["c3#1", "c3 attempt 1", "finished", "1h 10m", 6, 11],
++    ["c1#2", "c1 attempt 2", "finished", "47m", 8, 10],
++    ["judge#1", "Film Room pass 1", "scored", "40m", 12, 13],
++    ["judge#2", "Film Room pass 2", "scored", "35m", 14, 15],
++    ["graft#1", "Trade", "pr_opened", "55m", 16, 17],
++    ["physical#1", "Physical", "not_verified", "30m", 18, 19],
++    ["fix#1", "Fix loop 1", "verified", "25m", 20, 21],
++  ] as const;
++  assert.deepEqual(view.runs.map((run) => [run.id, run.label, run.outcome, run.durationText, run.startSeq, run.endSeq]), expected.map((row) => [...row]));
++  for (const run of view.runs) {
++    assert.equal(run.agentUrl, `https://cursor.com/agents/${run.agentId}`);
++  }
++});
++
++test("T3 sample stages", async () => {
++  const view = must(timeline(await sampleEvents(), SAMPLE_NOW));
++  assert.deepEqual(view.stages.map((span) => ({
++    stage: span.stage,
++    durationText: span.durationText,
++    firstSeq: span.firstSeq,
++    lastSeq: span.lastSeq,
++    to: span.to,
++  })), [
++    { stage: "Intake", durationText: "6m", firstSeq: 1, lastSeq: 1, to: "2026-10-10T14:06:00.000Z" },
++    { stage: "Scouting Report", durationText: "14m", firstSeq: 2, lastSeq: 2, to: "2026-10-10T14:20:00.000Z" },
++    { stage: "Combine", durationText: "1h 12m", firstSeq: 3, lastSeq: 11, to: "2026-10-10T15:32:00.000Z" },
++    { stage: "Film Room", durationText: "1h 18m", firstSeq: 12, lastSeq: 15, to: "2026-10-10T16:50:00.000Z" },
++    { stage: "Trade", durationText: "56m", firstSeq: 16, lastSeq: 17, to: "2026-10-10T17:46:00.000Z" },
++    { stage: "Physical", durationText: "57m", firstSeq: 18, lastSeq: 21, to: "2026-10-10T18:43:00.000Z" },
++    { stage: "Draft Pick", durationText: "0s", firstSeq: 22, lastSeq: 23, to: null },
++  ]);
++});
++
++test("T4 sample totals and links", async () => {
++  const view = must(timeline(await sampleEvents(), Date.parse("2026-11-01T00:00:00.000Z")));
++  assert.equal(view.status, "drafted");
++  assert.equal(view.live, false);
++  assert.equal(view.endedAt, "2026-10-10T18:43:00.000Z");
++  assert.equal(view.elapsedText, "4h 43m");
++  assert.equal(view.summary, "drafted · 4h 43m · 9 runs");
++  assert.deepEqual(view.counts, {
++    total: 9,
++    candidate: 4,
++    judge: 2,
++    graft: 1,
++    physical: 1,
++    fix: 1,
++    relaunches: 1,
++  });
++  assert.equal(view.entries.length, 23);
++  assert.equal(view.entries.find((entry) => entry.type === "scouting_approved")?.stage, "Combine");
++  const links = view.entries.flatMap((entry) => entry.links);
++  assert.equal(links.length, 19);
++  assert.equal(links.filter((link) => link.kind === "agent").length, 9);
++  assert.equal(links.filter((link) => link.kind === "commit").length, 6);
++  assert.equal(links.filter((link) => link.kind === "pr").length, 4);
++  const target = "BoydVC/draft-day";
++  for (const link of links) {
++    if (link.kind === "agent") assert.match(link.href, /^https:\/\/cursor\.com\/agents\/bc-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
++    if (link.kind === "pr") assert.match(link.href, new RegExp(`^https://github\\.com/${target}/pull/[1-9]\\d*$`));
++    if (link.kind === "commit") assert.match(link.href, new RegExp(`^https://github\\.com/${target}/commit/[0-9a-f]{40}$`));
++  }
++  const graft = view.entries.find((entry) => entry.seq === 17);
++  assert.deepEqual(graft?.links.map((link) => link.kind), ["pr", "commit"]);
++  const verdict = view.entries.find((entry) => entry.seq === 19);
++  assert.equal(verdict?.links[0]?.href, "https://github.com/BoydVC/draft-day/pull/42");
++  assert.equal(verdict?.links[1]?.label, "4444444");
++});
++
++test("T5 run pairing", async () => {
++  const base = "2026-10-10T14:";
++  const interleaved = [
++    created(),
++    ev("candidate_launched", { cand: "c1", attempt: 1, agentId: "bc-c1-1" }, `${base}10:00.000Z`, 2),
++    ev("candidate_launched", { cand: "c2", attempt: 1, agentId: "bc-c2-1" }, `${base}11:00.000Z`, 3),
++    ev("candidate_finished", { cand: "c2", attempt: 1 }, `${base}20:00.000Z`, 4),
++    ev("candidate_failed", { cand: "c1", attempt: 1 }, `${base}30:00.000Z`, 5),
++  ];
++  const interleavedView = must(timeline(interleaved, Date.parse(`${base}40:00.000Z`)));
++  assert.deepEqual(interleavedView.runs.map((run) => [run.id, run.outcome, run.endSeq]), [
++    ["c1#1", "errored", 5],
++    ["c2#1", "finished", 4],
++  ]);
++
++  const physical = [
++    created(),
++    ev("physical_launched", { attempt: 1, agentId: "bc-physical" }, `${base}00:00.000Z`, 2),
++    ev("verdict_recorded", { attempt: 1, physical: { verdict: "NOT_VERIFIED", prNumber: 9, headSha: "a".repeat(40) } }, `${base}10:00.000Z`, 3),
++    ev("fix_requested", { loop: 1, agentId: "bc-graft" }, `${base}11:00.000Z`, 4),
++    ev("verdict_recorded", { attempt: 2, physical: { verdict: "VERIFIED", prNumber: 9, headSha: "b".repeat(40) } }, `${base}20:00.000Z`, 5),
++  ];
++  const physicalView = must(timeline(physical, Date.parse(`${base}30:00.000Z`)));
++  assert.deepEqual(physicalView.runs.map((run) => [run.id, run.outcome, run.endSeq]), [
++    ["physical#1", "not_verified", 3],
++    ["fix#1", "verified", 5],
++  ]);
++
++  const judges = [
++    created(),
++    ev("judge_launched", { pass: 1, agentId: "bc-judge-1", labels: { A: "c1" } }, `${base}00:00.000Z`, 2),
++    ev("judge_launched", { pass: 2, agentId: "bc-judge-2", labels: { A: "c2" } }, `${base}05:00.000Z`, 3),
++    ev("judgement_recorded", { cards: [], base: "A" }, `${base}10:00.000Z`, 4),
++  ];
++  const judgeView = must(timeline(judges, Date.parse(`${base}20:00.000Z`)));
++  assert.equal(judgeView.runs[0]?.outcome, "scored");
++  assert.equal(judgeView.runs[0]?.endSeq, 4);
++  assert.equal(judgeView.runs[1]?.outcome, "running");
++  assert.equal(judgeView.runs[1]?.id, "judge#2");
++
++  const orphan = [
++    created(),
++    ev("candidate_finished", { cand: "c1", attempt: 1, report: { headSha: "c".repeat(40), tests: { added: 1, passing: true } } }, `${base}05:00.000Z`, 2),
++  ];
++  const orphanView = must(timeline(orphan, SAMPLE_NOW));
++  assert.equal(orphanView.runs.length, 0);
++  assert.equal(orphanView.entries[1]?.run, null);
++
++  for (const events of [interleaved, physical, judges, orphan]) {
++    const now = Date.parse(`${base}40:00.000Z`);
++    const view = must(timeline(events, now));
++    assert.equal(view.counts.total, reduce(events, now)?.runs);
++  }
++});
++
++test("T6 open and abandoned runs", async () => {
++  const events = await sampleEvents();
++  const now = Date.parse("2026-10-10T14:43:00.000Z");
++  const live = must(timeline(events.filter((event) => event.seq <= 8), now));
++  assert.deepEqual(live.runs.map((run) => [run.outcome, run.durationText]), [
++    ["errored", "9m"],
++    ["running", "22m"],
++    ["running", "22m"],
++    ["running", "12m"],
++  ]);
++  assert.equal(live.summary, "combine · 43m · 4 runs");
++  const combine = live.stages[live.stages.length - 1];
++  assert.equal(combine?.stage, "Combine");
++  assert.equal(combine?.durationText, "23m");
++  assert.equal(combine?.to, null);
++  for (const run of live.runs) {
++    if (run.outcome === "running") assert.equal(run.durationMs, now - Date.parse(run.startedAt));
++  }
++
++  const cancelledEvents = [
++    ...events.filter((event) => event.seq <= 18),
++    ev("pick_cancelled", { detail: "no" }, "2026-10-10T18:00:00.000Z", 19),
++  ];
++  const cancelledNow = Date.parse("2026-10-11T00:00:00.000Z");
++  const cancelled = must(timeline(cancelledEvents, cancelledNow));
++  const physical = cancelled.runs.find((run) => run.id === "physical#1");
++  assert.equal(physical?.outcome, "abandoned");
++  assert.equal(physical?.durationText, "14m");
++  assert.equal(physical?.endedAt, "2026-10-10T18:00:00.000Z");
++  assert.equal(cancelled.summary, "cancelled · 4h 00m · 8 runs");
++  assert.equal(live.counts.total, reduce(events.filter((event) => event.seq <= 8), now)?.runs);
++  assert.equal(cancelled.counts.total, reduce(cancelledEvents, cancelledNow)?.runs);
++});
++
++test("T7 terminal timelines ignore now", async () => {
++  const events = await sampleEvents();
++  const early = timeline(events, Date.parse("2026-10-10T18:43:00.000Z"));
++  const later = timeline(events, Date.parse("2026-11-10T00:00:00.000Z"));
++  assert.deepEqual(early, later);
++});
++
++test("T8 run counts agree with the reducer", async () => {
++  const events = await sampleEvents();
++  const sample = must(timeline(events, SAMPLE_NOW));
++  assert.equal(sample.counts.total, reduce(events, SAMPLE_NOW)?.runs);
++
++  const data = await mkdtemp(join(tmpdir(), "dd-timeline-selftest-"));
++  try {
++    const result = await dd(["selftest", "--keep", "--data", data]);
++    assert.equal(result.code, 0, result.stdout + result.stderr);
++    const found = new Map<string, string>();
++    for (const line of result.stdout.split("\n")) {
++      const match = /^(happy|policy|walkover)\s+(p-\d{8}-\d{2})\s/.exec(line.trim());
++      if (match) found.set(match[1]!, match[2]!);
++    }
++    assert.equal(found.size, 3);
++    const expected: Record<string, { total: number; candidate: number; relaunches: number; judge: number; graft: number; physical: number; fix: number }> = {
++      happy: { total: 8, candidate: 4, relaunches: 1, judge: 1, graft: 1, physical: 1, fix: 1 },
++      walkover: { total: 6, candidate: 5, relaunches: 2, judge: 0, graft: 0, physical: 1, fix: 0 },
++      policy: { total: 0, candidate: 0, relaunches: 0, judge: 0, graft: 0, physical: 0, fix: 0 },
++    };
++    for (const [name, pickId] of found) {
++      const raw = await readFile(join(data, "picks", pickId, "events.jsonl"), "utf8");
++      const logged = raw.split("\n").filter((line) => line.trim()).map((line) => JSON.parse(line) as DraftEvent);
++      const now = Date.now();
++      const view = must(timeline(logged, now));
++      const pick = reduce(logged, now);
++      assert.equal(view.counts.total, pick?.runs, name);
++      assert.equal(view.counts.total, expected[name]?.total, `${name} total`);
++      assert.equal(view.counts.candidate, expected[name]?.candidate, name);
++      assert.equal(view.counts.relaunches, expected[name]?.relaunches, name);
++      assert.equal(view.counts.judge, expected[name]?.judge, name);
++      assert.equal(view.counts.graft, expected[name]?.graft, name);
++      assert.equal(view.counts.physical, expected[name]?.physical, name);
++      assert.equal(view.counts.fix, expected[name]?.fix, name);
++    }
++  } finally {
++    await rm(data, { recursive: true, force: true });
++  }
++});
++
++test("T9 entry order, status, and clock skew", async () => {
++  const events = await sampleEvents();
++  const shuffled = [...events].reverse();
++  const now = SAMPLE_NOW;
++  const view = must(timeline(shuffled, now));
++  const ordered = [...events].sort((a, b) => a.seq - b.seq);
++  assert.deepEqual(view.entries.map((entry) => entry.seq), ordered.map((event) => event.seq));
++  const times = effectiveTimes(ordered);
++  for (let i = 0; i < ordered.length; i += 1) {
++    const prefix = reduce(ordered.slice(0, i + 1), times[i]);
++    const entry = view.entries[i];
++    assert.equal(entry?.status, prefix?.status);
++    assert.equal(entry?.stage, stageLabel(prefix!.status));
++  }
++  const skewed = ordered.map((event, index) => {
++    if (index === 4) return { ...event, ts: "2026-10-10T13:00:00.000Z" };
++    if (index === 5) return { ...event, ts: "not-a-time" };
++    return event;
++  });
++  const skewView = must(timeline(skewed, now));
++  assert.equal(skewView.entries.length, ordered.length);
++  assertClock(skewView);
++  assert.equal(skewView.entries[4]?.sincePrevMs, 0);
++  assert.equal(skewView.entries[5]?.sincePrevMs, 0);
++});
++
++test("T10 titles", async () => {
++  const view = must(timeline(await sampleEvents(), SAMPLE_NOW));
++  const expects: Record<number, string[]> = {
++    1: ["Pick created", "chat"],
++    2: ["Scouting report", "2 acceptance"],
++    3: ["approved"],
++    4: ["c1", "launched"],
++    5: ["c2", "launched"],
++    6: ["c3", "launched"],
++    7: ["c1", "errored", "9m"],
++    8: ["c1", "launched", "relaunch"],
++    9: ["c2", "finished", "52m", "2222222", "6 tests"],
++    10: ["c1", "finished", "47m", "1111111", "5 tests"],
++    11: ["c3", "finished", "1h 10m", "3333333", "9 tests"],
++    12: ["Film Room pass 1"],
++    13: ["pass 1", "3 cards", "judge named c2"],
++    14: ["Film Room pass 2", "reversed"],
++    15: ["pass 2", "3 cards", "judge named c2"],
++    16: ["Trade"],
++    17: ["#42"],
++    18: ["Physical"],
++    19: ["NOT_VERIFIED", "30m"],
++    20: ["Fix loop 1 of 2"],
++    21: ["VERIFIED", "25m"],
++    22: ["#42", "draft"],
++    23: ["combine", "c1 errored on its first launch; the relaunch finished in 47m"],
++  };
++  for (const entry of view.entries) {
++    for (const token of expects[entry.seq] ?? []) assert.ok(entry.title.includes(token), `${entry.seq} ${entry.title}`);
++    assert.equal(entry.title.includes(entry.type), false, entry.title);
++    for (const word of ["undefined", "NaN", "null", "[object Object]"]) {
++      assert.equal(entry.title.includes(word), false, entry.title);
++    }
++  }
++
++  const dropped = must(timeline([
++    created(),
++    ev("candidate_dropped", { cand: "c4" }, "2026-10-10T15:00:00.000Z", 2),
++  ], SAMPLE_NOW));
++  assert.ok(dropped.entries[1]?.title.includes("c4"));
++  assert.ok(dropped.entries[1]?.title.includes("dropped"));
++
++  const failed = must(timeline([
++    created(),
++    ev("pick_failed", { reason: "reframe" }, "2026-10-10T16:00:00.000Z", 2),
++  ], SAMPLE_NOW));
++  assert.ok(failed.entries[1]?.title.includes("failed"));
++  assert.ok(failed.entries[1]?.title.includes("reframe"));
++
++  const cancelled = must(timeline([
++    created(),
++    ev("pick_cancelled", { detail: "no" }, "2026-10-10T16:00:00.000Z", 2),
++  ], SAMPLE_NOW));
++  assert.ok(cancelled.entries[1]?.title.includes("Cancelled"));
++
++  const supplied = must(timeline([
++    created(),
++    ev("lesson_recorded", { topic: "null", text: "undefined NaN [object Object]" }, "2026-10-10T15:00:00.000Z", 2),
++  ], SAMPLE_NOW));
++  assert.ok(supplied.entries[1]?.title.includes("null"));
++  assert.ok(supplied.entries[1]?.title.includes("[object Object]"));
++
++  const alien = must(timeline([
++    created(),
++    { seq: 2, ts: "2026-10-10T15:00:00.000Z", type: "not_an_event" as EventType, by: "test", key: "alien", payload: { topic: "x" } },
++  ], SAMPLE_NOW));
++  assert.equal(alien.entries[1]?.title, "Unrecognized event");
++});
++
++test("T11 link allowlist", () => {
++  const bad = [
++    "bc-c1-1",
++    "agent-c1-1",
++    "javascript:alert(1)",
++    "bc-00000000-0000-4000-8000-000000000001\" onmouseover=\"x",
++    "https://evil.example/bc-00000000-0000-4000-8000-000000000001",
++    42,
++    null,
++  ];
++  for (const value of bad) assert.equal(agentUrl(value), null);
++  const good = "bc-00000000-0000-4000-8000-000000000001";
++  assert.equal(agentUrl(good), `https://cursor.com/agents/${good}`);
++
++  const events: DraftEvent[] = [created()];
++  let seq = 1;
++  for (const agentId of bad) {
++    seq += 1;
++    events.push(ev("candidate_launched", { cand: "c1", attempt: seq, agentId }, "2026-10-10T14:10:00.000Z", seq));
++  }
++  seq += 1;
++  events.push(ev("judge_launched", { pass: 1, agentId: "javascript:alert(1)" }, "2026-10-10T14:20:00.000Z", seq));
++  seq += 1;
++  events.push(ev("graft_recorded", { prNumber: "42", headSha: "ABCD".repeat(10) }, "2026-10-10T14:30:00.000Z", seq));
++  seq += 1;
++  events.push(ev("verdict_recorded", {
++    physical: { prNumber: 0, headSha: "https://evil.example/commit" },
++  }, "2026-10-10T14:40:00.000Z", seq));
++  const view = must(timeline(events, SAMPLE_NOW));
++  const href = /^(https:\/\/cursor\.com\/agents\/bc-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|https:\/\/github\.com\/BoydVC\/draft-day\/pull\/[1-9]\d*|https:\/\/github\.com\/BoydVC\/draft-day\/commit\/[0-9a-f]{40})$/;
++  for (const link of view.entries.flatMap((entry) => entry.links)) assert.match(link.href, href);
++  assert.equal(view.entries.flatMap((entry) => entry.links).some((link) => link.href.includes("javascript:")), false);
++});
++
++test("T12 go timeout", async () => {
++  const events = (await sampleEvents()).filter((event) => event.seq <= 2);
++  const now = Date.parse("2026-10-12T15:06:00.000Z");
++  const view = must(timeline(events, now));
++  assert.equal(view.status, "cancelled");
++  assert.equal(view.live, false);
++  assert.equal(view.endedAt, new Date(Date.parse("2026-10-10T14:06:00.000Z") + GO_TIMEOUT_MS).toISOString());
++  assert.equal(view.endedAt, "2026-10-12T14:06:00.000Z");
++  assert.deepEqual(view.stages.map((span) => ({
++    stage: span.stage,
++    durationText: span.durationText,
++    to: span.to,
++    firstSeq: span.firstSeq,
++    lastSeq: span.lastSeq,
++  })), [
++    { stage: "Intake", durationText: "6m", to: "2026-10-10T14:06:00.000Z", firstSeq: 1, lastSeq: 1 },
++    { stage: "Scouting Report", durationText: "2d 0h", to: "2026-10-12T14:06:00.000Z", firstSeq: 2, lastSeq: 2 },
++    { stage: "Cancelled", durationText: "0s", to: null, firstSeq: null, lastSeq: null },
++  ]);
++});
++
++test("T13 pick API carries timeline", async () => {
++  const data = await mkdtemp(join(tmpdir(), "dd-timeline-api-"));
++  const server = await startServer({
++    host: "127.0.0.1",
++    port: 0,
++    dataDir: data,
++    configPath: join(root, "draftday.config.json"),
++    targetsPath: join(root, "targets.json"),
++  });
++  try {
++    await writeFile(
++      join(data, "picks", "p-20261010-07", "events.jsonl"),
++      await readFile(FIXTURE),
++    ).catch(async () => {
++      const { mkdir } = await import("node:fs/promises");
++      await mkdir(join(data, "picks", "p-20261010-07"), { recursive: true });
++      await writeFile(join(data, "picks", "p-20261010-07", "events.jsonl"), await readFile(FIXTURE));
++    });
++    const response = await fetch(`${server.url}/api/picks/p-20261010-07`);
++    assert.equal(response.status, 200);
++    const body = await response.json() as { timeline: Timeline; events?: unknown };
++    assert.equal("events" in body, false);
++    const events = await sampleEvents();
++    assert.deepEqual(body.timeline, timeline(events, Date.now()));
++    const script = await fetch(`${server.url}/timeline.js`);
++    const style = await fetch(`${server.url}/timeline.css`);
++    assert.equal(script.status, 200);
++    assert.equal(style.status, 200);
++    async function files(dir: string): Promise<string[]> {
++      const out: string[] = [];
++      for (const entry of await readdir(dir, { withFileTypes: true })) {
++        const full = join(dir, entry.name);
++        if (entry.isDirectory()) out.push(...await files(full));
++        else out.push(full);
++      }
++      return out;
++    }
++    for (const file of await files("src")) {
++      const text = await readFile(file, "utf8");
++      assert.equal(text.includes("summarizeEvent"), false, file);
++    }
++  } finally {
++    await server.close();
++    await rm(data, { recursive: true, force: true });
++  }
++});
++
++test("T14 dd timeline", async () => {
++  const data = await mkdtemp(join(tmpdir(), "dd-timeline-cli-"));
++  const { mkdir } = await import("node:fs/promises");
++  await mkdir(join(data, "picks", "p-20261010-07"), { recursive: true });
++  await writeFile(join(data, "picks", "p-20261010-07", "events.jsonl"), await readFile(FIXTURE));
++  try {
++    const events = await sampleEvents();
++    const view = must(timeline(events, Date.now()));
++    const json = await dd(["timeline", "p-20261010-07", "--json", "--data", data]);
++    assert.equal(json.code, 0, json.stderr);
++    assert.deepEqual(JSON.parse(json.stdout), view);
++    const text = await dd(["timeline", "p-20261010-07", "--data", data]);
++    assert.equal(text.code, 0, text.stderr);
++    const lines = text.stdout.trimEnd().split("\n");
++    assert.equal(lines.length, 25);
++    assert.equal(lines[0], "p-20261010-07  drafted  4h 43m  9 runs");
++    assert.equal(lines[24], "runs 9: candidate 4 (1 relaunch), judge 2, graft 1, physical 1, fix 1");
++    for (let i = 0; i < view.entries.length; i += 1) {
++      const entry = view.entries[i]!;
++      assert.equal(lines[i + 1], `+${entry.sinceStartText}  ${entry.stage}  ${entry.title}`);
++    }
++    const unknown = await dd(["timeline", "p-20261010-99", "--data", data]);
++    assert.equal(unknown.code, 2);
++    assert.match(unknown.stderr, /error:/);
++    const malformed = await dd(["timeline", "nope", "--data", data]);
++    assert.equal(malformed.code, 2);
++    assert.match(malformed.stderr, /error:/);
++    const help = await dd(["help"]);
++    assert.match(help.stdout, /dd timeline <pickId>/);
++  } finally {
++    await rm(data, { recursive: true, force: true });
++  }
++});
++
++test("T18 no markup from payloads", async () => {
++  const banned = /innerHTML|outerHTML|insertAdjacentHTML|document\.write|eval\(|new Function/;
++  for (const name of await readdir("src/ui")) {
++    const text = await readFile(join("src/ui", name), "utf8");
++    assert.doesNotMatch(text, banned, name);
++  }
++  const ui = await readFile("src/ui/timeline.js", "utf8");
++  assert.doesNotMatch(ui, /fetch\s*\(/);
++  const hostile = must(timeline([
++    created(1, "2026-10-10T14:00:00.000Z", { idea: "Show <script>alert(1)</script>" }),
++    ev("lesson_recorded", { topic: "xss", text: "<img src=x onerror=alert(1)>" }, "2026-10-10T14:05:00.000Z", 2),
++  ], SAMPLE_NOW));
++  assert.ok(hostile.entries[1]?.title.includes("<img src=x onerror=alert(1)>"));
++});
++
++test("T19 300 events", async () => {
++  const events = await sampleEvents();
++  for (let i = 0; i < 277; i += 1) {
++    events.push(ev("lesson_recorded", { topic: "combine", text: `note ${i}` }, "2026-10-10T18:50:00.000Z", 24 + i));
++  }
++  const started = Date.now();
++  const view = must(timeline(events, SAMPLE_NOW));
++  assert.ok(Date.now() - started < 1000);
++  assert.equal(view.entries.length, 300);
++});

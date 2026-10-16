@@ -1,0 +1,2 @@
+no fixtures at runs/p7/start/test/fixtures/bigboard
+TOTAL 0/0

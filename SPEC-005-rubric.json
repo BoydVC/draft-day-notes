@@ -1,0 +1,21 @@
+{
+  "pick": "Pick 4: Phone War Room",
+  "spec": "SPEC-005-phone-war-room.md",
+  "rubric": [
+    { "id": "thumb", "name": "Thumb-reach layout", "weight": 3 },
+    { "id": "scheme", "name": "Two-scheme token discipline", "weight": 3 },
+    { "id": "intake", "name": "Intake form resilience", "weight": 3 },
+    { "id": "safety", "name": "Same-origin, text-only safety", "weight": 2 },
+    { "id": "tests", "name": "Harness-backed tests", "weight": 2 },
+    { "id": "stack", "name": "Clean stack, small diff", "weight": 2 }
+  ],
+  "candidates": {
+    "c1": { "branch": "dd/p4-phone-a", "angle": "Token ledger" },
+    "c2": { "branch": "dd/p4-phone-b", "angle": "Intake state machine" },
+    "c3": { "branch": "dd/p4-phone-c", "angle": "Card-stack board" }
+  },
+  "labels": {
+    "pass1": { "A": "c3", "B": "c2", "C": "c1" },
+    "pass2": { "A": "c1", "B": "c2", "C": "c3" }
+  }
+}

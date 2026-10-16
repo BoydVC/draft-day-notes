@@ -1,0 +1,19 @@
+R1 0/5  p-20261010-07 frame 1: no Replay article | p-20261017-93 frame 1: no Replay article | p-20261017-94 frame 1: no Replay article | p-20261017-98 frame 1: no Replay article
+R2 0/8  at=11: no Replay article | at=20: no Replay article | at=1: no Replay article | at=999: no Replay article
+R3 0/10  p-20261010-07 frame 1: no Replay article | threw: replay-harness: no button named Next event | p-20261017-93 frame 1: no Replay article | threw: replay-harness: no button named Next event
+R4 0/3  frame 1 disabled set | button order [] | threw: replay-harness: no button named Last event
+R5 0/1  threw: replay-harness: no button named Play
+R6 0/1  threw: replay-harness: no button named Play
+R7 0/1  threw: replay-harness: no button named Play
+R8 0/1  threw: replay-harness: no button named Next event
+R9 0/4  live frame 12: no Replay article | judge pass 2 running | extended: undefined | threw: replay-harness: no button named Next event
+R10 0/2  open: ["GET /api/board"] | threw: replay-harness: no button named Next event
+R11 0/1  threw: replay-harness: no button named Play
+R12 0/3  pick page Replay link undefined | Pick page link | Big Board link
+R13 0/1  unknown: Locker RoomNew pickIdeaTargetCandidatesAdd pickBig BoardPickIdeaStageStatusRunsp
+R14 1/2  threw: replay-harness: no button named Next event
+R15 0/3  http.ts files list lacks /replay.js or /replay.css | links ["styles.css","timeline.css","lessons.css"] | scripts ["timeline.js","lessons.js","app.js"]
+R16 0/1  no src/ui/replay.js
+R17 0/1  no src/ui/replay.css
+R18 5/7  /replay.js 404 application/json | /replay.css 404 application/json
+TOTAL 6/55

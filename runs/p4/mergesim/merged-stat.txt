@@ -1,0 +1,18 @@
+ .cursor/skills/verify-draft-day/SKILL.md           |   4 +-
+ .cursor/skills/verify-draft-day/features/README.md |   2 +
+ .../skills/verify-draft-day/features/new-pick.md   |   2 +-
+ .cursor/skills/verify-draft-day/features/phone.md  |   1 +
+ .cursor/skills/verify-draft-day/helpers/control.sh |   6 +-
+ docs/DECISIONS.tsv                                 |   2 +
+ src/server/http.ts                                 |   4 +-
+ src/ui/app.js                                      | 119 ++++++----
+ src/ui/index.html                                  |   7 +-
+ src/ui/lessons.css                                 |   1 +
+ src/ui/lessons.js                                  |   1 +
+ src/ui/styles.css                                  | 131 ++++++++---
+ src/ui/timeline.css                                |   2 +-
+ test/fixtures/phone/cdp-shot.mjs                   |  85 +++++++
+ test/fixtures/phone/dom-harness.mjs                | 262 +++++++++++++++++++++
+ test/fixtures/phone/probe.js                       | 101 ++++++++
+ test/phone.test.ts                                 |   1 +
+ 17 files changed, 654 insertions(+), 77 deletions(-)

@@ -1,0 +1,21 @@
+{
+  "pick": "Pick 7: Big Board stats",
+  "spec": "SPEC-008-big-board.md",
+  "rubric": [
+    { "id": "numbers", "name": "Stats fidelity on fixtures", "weight": 3 },
+    { "id": "engine", "name": "One source of truth", "weight": 3 },
+    { "id": "screen", "name": "Big Board stats screens", "weight": 3 },
+    { "id": "glance", "name": "Five-second read", "weight": 2 },
+    { "id": "safety", "name": "Untrusted log text safety", "weight": 2 },
+    { "id": "stack", "name": "Clean stack, small diff", "weight": 2 }
+  ],
+  "candidates": {
+    "c1": { "branch": "dd/p7-big-board-a", "angle": "Stat ledger" },
+    "c2": { "branch": "dd/p7-big-board-b", "angle": "Scoreboard" },
+    "c3": { "branch": "dd/p7-big-board-c", "angle": "Box score" }
+  },
+  "labels": {
+    "pass1": { "A": "c2", "B": "c3", "C": "c1" },
+    "pass2": { "A": "c1", "B": "c3", "C": "c2" }
+  }
+}

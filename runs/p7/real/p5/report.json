@@ -1,0 +1,174 @@
+{
+ "restatement": "Add a Replay page at #/picks/<id>/replay that plays a pick's Decision log back one event at a time. Boyd should be able to scrub to any moment of Pick 4 and see, in under five seconds: how long the pick had been running (+2h 53m), its status chip (judging), its stage (Film Room), which runs were on the field and how each one ended so far, which stages were done and how long each took, and the sentence for what just happened, with its agent or pull-request link. Play steps through the film at one event per second, so the whole of Pick 4 plays in 19 seconds, which is the backbone of the demo video.",
+ "acceptance": [
+  {
+   "id": "R1",
+   "when": "#/picks/<id>/replay opens for any of the five fixture picks",
+   "shall": "show the Replay DOM at frame 1, equal to frameAt(timeline, 0) (compareFrame returns []). (Baseline: 0/5, no Replay article.)"
+  },
+  {
+   "id": "R2",
+   "when": "the hash carries ?at=<seq>",
+   "shall": "open at that event's frame (at=11"
+  },
+  {
+   "id": "R3",
+   "when": "Next event is pressed from frame 1 to the last frame",
+   "shall": "show, at every frame of every fixture, exactly the frame rule: 93 frames (20 + 21 + 9 + 20 + 23) all equal to frameAt(). (Baseline: 0.)"
+  },
+  {
+   "id": "R4",
+   "when": "the controls are used",
+   "shall": "have the five buttons in the binding order, disable per P4, move per P3 (Last event"
+  },
+  {
+   "id": "R5",
+   "when": "Play is pressed",
+   "shall": "read Pause, keep the frame for 999 ms, move one frame at 1000 ms, stop on the last frame with Play shown and zero timers pending, and restart from frame 1 when pressed on the last frame (P1, P2). (Baseline: 0.)"
+  },
+  {
+   "id": "R6",
+   "when": "a step button or the slider is used while playing",
+   "shall": "pause (Play shown, zero timers) and show the chosen frame (P3). (Baseline: 0.)"
+  },
+  {
+   "id": "R7",
+   "when": "three live updates land 500 ms into a step",
+   "shall": "keep the frame and Pause, have exactly one timer pending, and move on 500 ms later; WHEN paused, a live update SHALL keep it paused (P6). (Baseline: 0.)"
+  },
+  {
+   "id": "R8",
+   "when": "Next event, Play, a play step or a live update happens",
+   "shall": "keep the same caption node and the same Next event button, keep focus on the control that had it (Next event, then Pause), and move focus to Event when Last event disables itself (P6). (Baseline: 0.)"
+  },
+  {
+   "id": "R9",
+   "when": "the pick is live (p-20261017-94 events 1-12 through core timeline() at 2026-10-17T21:10:00Z)",
+   "shall": "show Film Room pass 2 · running at frame 12 of 12; WHEN a live update brings event 13 THE SYSTEM SHALL show Event 12 of 13 on the same frame and frame 13 after Next event; WHEN events 1-2 are replayed at 2026-10-20T00:00:00Z (a go timeout) THE SYSTEM SHALL show stages Intake 37m, Scouting Report 2d 0h, Cancelled on frame 2 and Intake alone on frame 1. (Baseline: 0.)"
+  },
+  {
+   "id": "R10",
+   "when": "Replay opens",
+   "shall": "make exactly one GET /api/picks/<id> after the route change, none for Play, steps, scrubbing or ticks, exactly one per live update, and keep exactly one EventSource on /api/events (P9). (Baseline: 0.)"
+  },
+  {
+   "id": "R11",
+   "when": "the hash changes to #/ or to the pick page while playing",
+   "shall": "leave zero replay timers pending and make no request on later ticks (P7). (Baseline: 0.)"
+  },
+  {
+   "id": "R12",
+   "when": "a pick page renders",
+   "shall": "carry a Replay link to #/picks/<id>/replay; WHEN Replay renders THE SYSTEM SHALL carry Pick page (#/picks/<id>) and Big Board (#/). (Baseline: 0/3.)"
+  },
+  {
+   "id": "R13",
+   "when": "the id is not on the board (p-20261017-55)",
+   "shall": "show That pick is not on the board. and a Big Board link, no Replay article and no timer (P8). (Baseline: 0.)"
+  },
+  {
+   "id": "R14",
+   "when": "p-20261017-99 is stepped through all 20 frames",
+   "shall": "create no img, script or iframe node and no on* attribute anywhere in #app, every href SHALL match ^(#/|https://cursor\\.com/agents/bc-[0-9a-f-]+$|https://github\\.com/BoydVC/draft-day/(pull|commit)/), the Runs so far item for c2 SHALL carry no link, and the hostile idea and the lesson's <img src=x onerror=\"alert(4)\"> SHALL appear as text. (Baseline: 1/2, vacuous.)"
+  },
+  {
+   "id": "R15",
+   "when": "http.ts and index.html are read",
+   "shall": "list \"/replay.js\" and \"/replay.css\" in the static files array, link stylesheets in the order styles.css, timeline.css, lessons.css, replay.css, and load scripts in the order timeline.js, lessons.js, replay.js, app.js. (Baseline: 0/3.)"
+  },
+  {
+   "id": "R16",
+   "when": "src/ui/replay.js is read",
+   "shall": "contain no fetch(, no Date, no requestAnimationFrame, no localStorage/sessionStorage/document.cookie/XMLHttpRequest/WebSocket/sendBeacon, no /test/, no history., no location.hash = (comments included), and SHALL assign globalThis.draftDayReplay (as draftDayTimeline and draftDayLessons do); T18, L18 and W11 keep passing with it in src/ui. (Baseline: no file.)"
+  },
+  {
+   "id": "R17",
+   "when": "src/ui/replay.css is read",
+   "shall": "have no hex color, no color function and no named color in a color property (W5 with replay.css added), no transition or animation outside @media (prefers-reduced-motion: no-preference) { … }, and no @import or url(http. (Baseline: no file.)"
+  },
+  {
+   "id": "R18",
+   "when": "each fixture log is served by startServer() from src/server/http.ts",
+   "shall": "return a timeline deep-equal to the matching *.pick.json (5 picks), and GET /replay.js and GET /replay.css SHALL be 200 with text/javascript and text/css. (Baseline: 5/7; both files 404.)"
+  },
+  {
+   "id": "R19",
+   "when": "the Replay page of p-20261017-94 is probed with cdp-shot.mjs at ?at=1, ?at=11, ?at=20, at 390×844, 430×932 and 1280×800, in light and dark (18 runs)",
+   "shall": "print \"ok\":true, \"offOrigin\":[], scrollWidth ≤ the width, and chips holding exactly one chip whose status is the frame's (intake, judging, drafted); every Replay control and link SHALL be at least 44×44 at every width, including 1280 (play-by-play links inside .dd-event are the only exemption); WHEN the pick page is probed at 390 and 430 in both schemes THE SYSTEM SHALL stay \"ok\":true, and at 1280 its problem list SHALL not name Replay. (Baseline: the replay hash shows the Big Board; no Replay chip.)"
+  },
+  {
+   "id": "R20",
+   "when": "npm test runs after this change",
+   "shall": "still pass every earlier test (SPEC 001-005 suites, the import boundary, the network grep, T18, L18, W1-W17) with test/guards.test.ts byte-identical, zero runtime dependencies, the 12 uploads byte-identical (sha256 above), test/fixtures/phone/* unchanged, dd selftest printing its happy, policy, walkover and close lines unchanged, and git diff --name-only START...HEAD inside the touch map."
+  },
+  {
+   "id": "R21",
+   "when": "the verify skill's features/replay.md is driven",
+   "shall": "produce the ten screenshots of VERIFY 6, commit them under docs/screens/p5-replay/, list their repo paths in the dd-report screenshots field, and show Play advancing and a live update extending the film in a real browser."
+  }
+ ],
+ "rubric": [
+  {
+   "id": "frames",
+   "name": "Frame fidelity on real logs",
+   "weight": 3,
+   "howToGrade": "Your pooled R1-R4, R9, R12-R14. Then by hand in the harness: open p-20261017-93 at its fix-loop verdict (?at= that seq) and p-20261017-98 at its last frame and compare with the frame table; check one live prefix (timeline(events.slice(0, 12), …) of p-20261017-94) and one synthetic final stage (events.slice(0, 2) with now after the 48 h timeout). 4 = every frame of all five fixtures equals frameAt() and both by-hand cases are right. One wrong run state or stage duration on a real log = 2 at most. Any duration formatted in the browser (replay.js computing minutes or hours) = 1 at most."
+  },
+  {
+   "id": "deck",
+   "name": "Playback discipline",
+   "weight": 3,
+   "howToGrade": "Your pooled R5-R8, R10, R11. Then by hand with the fake clock: Play, three live updates inside one step, then tick: one timer pending and the step lands on time; Pause during play and update twice: still paused; press Last event with focus on Next event: focus ends on the Event slider; leave to #/ while playing: zero timers. Any path that leaves two timers, a timer after leaving, or a lost place after an update = 1 at most."
+  },
+  {
+   "id": "screen",
+   "name": "Game-film screens",
+   "weight": 3,
+   "howToGrade": "Run cdp-shot.mjs per label on #/picks/p-20261017-94/replay?at=1, ?at=11 and ?at=20 at 390×844, 430×932 and 1280×800, light and dark (18 runs), plus the pick page at 390×844 dark. 4 = every probe ok: true with exactly one chip of the frame's status, scrollWidth ≤ width, and from the ?at=11 390 dark and 1280 light screenshots you can say within 5 seconds the elapsed time, the status, what just happened and which runs are on the field. 3 = probes pass but one screen is cramped or a caption is truncated. 2 = one W7/W8/W9 problem left. 0 = the page scrolls sideways at 390 or a control is under 44×44 at 1280. Screenshots are required for a 3 or 4."
+  },
+  {
+   "id": "safety",
+   "name": "Same-origin, text-only safety",
+   "weight": 2,
+   "howToGrade": "Re-run the safety-fact proof with your own hostile pick body, made by editing a copy of p-20261017-99.pick.json: an entry title, a link label, a run label and the idea set to \"><img src=x onerror=alert(1)>; an entry's cand, a run's id and a run's agentId set to javascript:alert(1) (no href on the page may contain it: Replay draws hrefs only from links[].href, which core validates); and a 2,000-character title with no spaces (probe W7 with it shown). Grep src/ui/replay.* for innerHTML, outerHTML, insertAdjacentHTML, document.write, eval(, new Function, localStorage, sessionStorage, document.cookie, history., @import, url(http, //fonts.. Any off-origin request, markup from server text, an href from a field other than links[], or stored state = 0."
+  },
+  {
+   "id": "tests",
+   "name": "Harness-backed tests",
+   "weight": 2,
+   "howToGrade": "test/replay.test.ts drives replay-harness.mjs (and the fixtures) rather than re-implementing it. Expected values are the spec's literals and frameAt(), not values captured from the candidate's own output. Test names carry R-ids. Break one rule by hand (reschedule the timer on every live update; drop the stop call in render(); show abandoned as running) and at least one candidate test must fail for each."
+  },
+  {
+   "id": "stack",
+   "name": "Clean stack, small diff",
+   "weight": 2,
+   "howToGrade": "git diff --name-only START...<sha> stays inside the touch map; any edit to a do-not-touch file caps this at 1. git diff START -- src/server/http.ts is exactly the one files line. git merge-base --is-ancestor START <sha> holds; if dd/p4-phone moved, git merge-tree --write-tree --name-only <sha> origin/dd/p4-phone conflicts at most in docs/DECISIONS.tsv. Compare diff.added + diff.removed with the others (PNG files count as files, not lines). Zero runtime deps."
+  }
+ ],
+ "designSketch": "Boyd, demo night, phone in dark mode, taps Replay on Pick 4's page:\n  Pick page   Big Board                         (each ≥ 44×44)\n  Replay · p-20261017-94\n  Phone War Room: mobile layout, dark mode, …\n  +2h 53m   [ JUDGING ]   Film Room   Event 11 of 20\n  Film Room pass 1 scored 3 cards and the judge named c1.\n  [=========o-----------]                       ← the Event slider, 44 px tall\n  ( Play )  ( First event ) ( Previous event ) ( Next event ) ( Last event )\n  Runs so far:   c1 attempt 1 · finished · 19m   …   Film Room pass 1 · scored · 33m\n  Stages so far: Intake 37m · Scouting Report 1h 21m · Combine 22m · Film Room\n  Play by play (newest first):\n    +2h 53m Film Room pass 1 scored 3 cards and the judge named c1.\n    +2h 20m Film Room pass 1 started, and the stage changed from Combine to Film Room. Agent Film Room pass 1\n    …\nHe taps Play: one event a second until \"Pull request #6 is confirmed as a draft\". A live update lands\nmid-play: the film keeps its place. At 1280 px the same page has room for the runs and stages beside the film.",
+ "verifyPlan": [
+  "npm test green; test/replay.test.ts names each test with its R-id.",
+  "npx tsc --noEmit exit 0.",
+  "node --experimental-strip-types src/cli/dd.ts selftest exit 0, printing DATA_DIR=… and the lines happy … drafted, policy … failed, walkover … drafted, close … drafted.",
+  "node --experimental-strip-types src/cli/dd.ts doctor output.",
+  "sha256sum test/fixtures/replay/*: all twelve must equal the sha256 values at the top of this spec. Run git diff --quiet START -- test/guards.test.ts package.json src/core src/cli src/store src/report src/briefs test/fixtures/phone test/fixtures/timeline test/fixtures/lessons src/ui/styles.css src/ui/timeline.css src/ui/lessons.css src/ui/timeline.js src/ui/lessons.js && echo untouched, and paste g",
+  "Verify skill (update first, then execute once, per pstack create-verification-skill step 4 and maintain-verification-skill):",
+  "Safety fact (blast-radius, prove at certainty 4 = ran it): \"No pick body (real, live, failed or hostile), no live update, and no sequence of Play, Pause, steps, scrubbing or navigation can make Replay request anything but one same-origin GET /api/picks/<id> per open or live update, render server text as markup, draw an href that did not come from timeline.entries[].links, keep a timer running afte",
+  "Stack probe: git merge-base --is-ancestor START HEAD && echo on-stack. Then git fetch origin dd/p4-phone && git rev-parse FETCH_HEAD. If that is not START, run git merge-tree --write-tree --name-only HEAD FETCH_HEAD and paste the result (conflicts should be at most docs/DECISIONS.tsv); otherwise write START_REF unchanged. If this git is older than 2.38, use a scratch worktree: git merge --no-commi",
+  "git diff --name-only START...HEAD pasted; every path must be allowed by the touch map (the grafter's three sanctioned kinds of path included)."
+ ],
+ "safetyFact": "No pick body (real, live, failed or hostile), no live update, and no sequence of Play, Pause, steps, scrubbing or navigation can make Replay request anything but one same-origin GET /api/picks/<id> per open or live update, render server text as markup, draw an href that did not come from timeline.entries[].links, keep a timer running after leaving the replay route, or store anything.",
+ "angles": [
+  "Frame engine: start from the frame rule; write one pure function that maps (timeline, index) to a frame, row by row from the spec's frame table, one module-level playback record (pick id, index, playing, timer), and one paint function that updates persistent nodes in place; smallest app.js hunks; plain CSS that meets the size rules; tests drive every frame of every fixture through compareFrame.",
+  "Broadcast booth: start from the demo video; the film reads like a sports broadcast: a big scoreboard (clock, status chip, stage, counter), the caption as a lower third, and at 1280 px the runs as a field of lanes beside the film; on a phone the controls sit in one thumb-reach bar (safe-area aware) under the film; transitions only inside @media (prefers-reduced-motion: no-preference); tokens only, both schemes; paused on any 390 px dark screenshot, a stranger can say how long the pick has run, what just happened and who is still on the field.",
+  "Chapter cuts: start from the story; cut the film into chapters by stage: a Chapters nav outside the Replay controls group with one link or button per stage reached so far (each at least 44x44, never a .chip), jumping to that stage's first event, the current chapter marked; the fix loop in Pick 3 and the NOT_VERIFIED in Pick 4 are easy to find; accessible names and aria-valuetext read well in VoiceOver order (film, controls, chapters, lists); extra controls never break the playback rules or the probe."
+ ],
+ "forbidden": [
+  "Draft PRs only. Never mark a PR ready for review, never merge, never enable auto-merge, never deploy or publish anything.",
+  "Candidates open no pull request at all (push your branch only). If your environment opens one automatically, it must be a draft with base dd/p4-phone, and say so in your report.",
+  "Touch only BoydVC/draft-day. Nothing KPD, kpdlawgroup, or debt-collection related, in code, fixtures, tests or examples.",
+  "Do not push to main, dd/scaffold, dd/p1-film-room*, dd/p2-timeline*, dd/p3-lessons* or dd/p4-phone*, and do not force-push.",
+  "Do not edit a file the touch map marks do-not-touch.",
+  "No runtime dependencies, no network code (the A15 guard in test/guards.test.ts stays as is), no secrets, no LLM calls, no web fonts or other-origin assets, no localStorage/sessionStorage/cookies/history writes."
+ ]
+}

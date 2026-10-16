@@ -1,0 +1,21 @@
+{
+  "pick": "Pick 1: Film Room scorecards",
+  "spec": "SPEC-002-film-room.md",
+  "rubric": [
+    {"id": "selection",  "name": "Selection correctness",     "weight": 3},
+    {"id": "boundaries", "name": "One deep module, one way",  "weight": 3},
+    {"id": "validation", "name": "Record-time validation",    "weight": 2},
+    {"id": "warroom",    "name": "Scorecard legibility",      "weight": 3},
+    {"id": "tests",      "name": "Tests prove behavior",      "weight": 2},
+    {"id": "blast",      "name": "Small, safe diff",          "weight": 1}
+  ],
+  "candidates": {
+    "c1": {"branch": "dd/p1-film-room-a", "angle": "Minimal pure reducer"},
+    "c2": {"branch": "dd/p1-film-room-b", "angle": "Table-driven rubric engine"},
+    "c3": {"branch": "dd/p1-film-room-c", "angle": "War Room first"}
+  },
+  "labels": {
+    "pass1": {"A": "c2", "B": "c3", "C": "c1"},
+    "pass2": {"A": "c1", "B": "c3", "C": "c2"}
+  }
+}

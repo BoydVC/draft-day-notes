@@ -1,0 +1,26 @@
+{
+  "id": "p-20261018-96",
+  "by": "grok-bot",
+  "provenance": "Draft Day Pick 6 (SPEC 007, Scouting Report linter), driven by hand by Grok Bot on Sun Oct 18, 2026. Times are LOG.tsv row times (ET converted to UTC) or file birth times; several events logged in the same second are spaced 1-10 s apart in log order. Reports are the agents' own dd-report / dd-judgement / dd-verdict blocks, unedited.",
+  "steps": [
+    {"ts": "2026-10-18T13:39:37.938Z", "type": "pick_created", "idea": "Scouting Report linter: every rubric criterion gradeable, every EARS line bound to a test or journey, angles distinct", "source": "plan", "target": "BoydVC/draft-day", "n": 3, "approval": "ask", "why": "fixtures/linter birth time (first Pick 6 artifact)"},
+    {"ts": "2026-10-18T13:48:08.000Z", "type": "scouting_report_written", "reportFile": "report.json", "why": "LOG.tsv 09:48:08 ET: SPEC-007 pack ready"},
+    {"ts": "2026-10-18T13:49:35.000Z", "type": "scouting_approved", "via": "human", "why": "launch go, just before LOG.tsv 09:49:43 ET launches"},
+    {"ts": "2026-10-18T13:49:43.000Z", "type": "candidate_launched", "cand": "c1", "agentId": "bc-dd07244c-dc61-527c-976c-12bc218bdac1", "branch": "dd/p6-linter-a"},
+    {"ts": "2026-10-18T13:49:44.000Z", "type": "candidate_launched", "cand": "c2", "agentId": "bc-05a407ed-335e-51c5-a904-13f1c52a166f", "branch": "dd/p6-linter-b"},
+    {"ts": "2026-10-18T13:49:45.000Z", "type": "candidate_launched", "cand": "c3", "agentId": "bc-510fdcf2-f31d-55ad-9e16-b870e38f0b1c", "branch": "dd/p6-linter-c"},
+    {"ts": "2026-10-18T14:14:10.000Z", "type": "candidate_finished", "cand": "c1", "file": "c1-final.md"},
+    {"ts": "2026-10-18T14:14:20.000Z", "type": "lesson_recorded", "topic": "touch-map", "text": "Closed-list wiring tests (stylesheet and script lists) must be pre-declared as sanctioned candidate edits; R15 made every compliant candidate fail the same two assertions.", "why": "LOG.tsv 10:14:10 ET ruling R15"},
+    {"ts": "2026-10-18T14:15:34.000Z", "type": "candidate_finished", "cand": "c2", "file": "c2-final.md"},
+    {"ts": "2026-10-18T14:15:35.000Z", "type": "candidate_finished", "cand": "c3", "file": "c3-final.md"},
+    {"ts": "2026-10-18T14:16:06.000Z", "type": "judge_launched", "order": ["c1", "c2", "c3"], "labels": {"A": "c1", "B": "c2", "C": "c3"}, "agentId": "bc-cd8723ff-93a8-587f-a70c-04a077d5a900"},
+    {"ts": "2026-10-18T14:40:47.000Z", "type": "judgement_recorded", "file": "judge-pass1.md", "secondRead": "agree", "note": "c1 oracle 14/14, literal tags, replay tests untouched."},
+    {"ts": "2026-10-18T14:40:57.000Z", "type": "judge_launched", "order": ["c3", "c2", "c1"], "labels": {"A": "c3", "B": "c2", "C": "c1"}, "agentId": "bc-e8fdab53-d98b-59f9-a30a-c7a6f43131e5"},
+    {"ts": "2026-10-18T14:54:19.000Z", "type": "judgement_recorded", "file": "judge-pass2.md", "secondRead": "agree", "note": "Swap consistent; base c1."},
+    {"ts": "2026-10-18T14:54:45.000Z", "type": "graft_launched", "agentId": "bc-bcc43a56-63c1-5492-b215-06f8587dc83f"},
+    {"ts": "2026-10-18T15:06:01.000Z", "type": "graft_recorded", "prNumber": 8, "headSha": "dc38660f2f3fdaadcfd2e879693e24cb21a05eba", "summary": "Grafted c2's R15 list appends and phone paste bar and c3's paste-form placement onto the c1 rule ledger."},
+    {"ts": "2026-10-18T15:06:21.000Z", "type": "physical_launched", "agentId": "bc-dc1b7aca-6b39-517d-8d50-e1b52dd6445f"},
+    {"ts": "2026-10-18T15:16:51.000Z", "type": "verdict_recorded", "file": "verdict1.md"},
+    {"ts": "2026-10-18T15:17:01.000Z", "type": "draft_pr_confirmed", "prNumber": 8, "why": "LOG.tsv 11:16:51 ET: still draft"}
+  ]
+}

@@ -1,0 +1,106 @@
+head viewport "width=device-width, initial-scale=1" color-scheme null theme-color light - dark -
+tokens light 10 dark 0 (required 25)
+pair light --ink on --bg 16.06 ok (min 4.5)
+pair light --ink on --bg-2 14.32 ok (min 4.5)
+pair light --muted on --bg 9.57 ok (min 4.5)
+pair light --muted on --bg-2 8.53 ok (min 4.5)
+pair light --gold on --bg 10.84 ok (min 4.5)
+pair light --gold on --bg-2 9.66 ok (min 4.5)
+pair light --green on --bg-2 8.71 ok (min 4.5)
+pair light --red on --bg-2 6.07 ok (min 4.5)
+pair light --blue on --bg-2 7.71 ok (min 4.5)
+pair light --amber on --bg-2 7.37 ok (min 4.5)
+chip intake      default WRONG light - dark -
+chip scouting    default WRONG light - dark -
+chip awaiting_go work    WRONG light - dark -
+chip combine     work    WRONG light - dark -
+chip judging     review  WRONG light - dark -
+chip grafting    work    WRONG light - dark -
+chip physical    review  WRONG light - dark -
+chip drafted     done    WRONG light - dark -
+chip failed      stop    WRONG light - dark -
+chip cancelled   stop    WRONG light - dark -
+literals styles.css 12
+literals timeline.css 1
+result fail (80 problems)
+- W1 viewport is "width=device-width, initial-scale=1"
+- W1 meta color-scheme is null
+- W2 the second block is not @media (prefers-color-scheme: dark) { :root { … } }
+- W2 :root color-scheme is "dark"
+- W2 dark is missing --bg
+- W2 dark is missing --bg-2
+- W2 light is missing --glow
+- W2 dark is missing --glow
+- W2 dark is missing --ink
+- W2 dark is missing --muted
+- W2 dark is missing --line
+- W2 light is missing --field
+- W2 dark is missing --field
+- W2 light is missing --field-line
+- W2 dark is missing --field-line
+- W2 light is missing --card
+- W2 dark is missing --card
+- W2 dark is missing --gold
+- W2 light is missing --on-accent
+- W2 dark is missing --on-accent
+- W2 dark is missing --green
+- W2 dark is missing --red
+- W2 dark is missing --blue
+- W2 dark is missing --amber
+- W2 light is missing --chip-bg
+- W2 dark is missing --chip-bg
+- W2 light is missing --chip-ink
+- W2 dark is missing --chip-ink
+- W2 light is missing --chip-done-bg
+- W2 dark is missing --chip-done-bg
+- W2 light is missing --chip-done-ink
+- W2 dark is missing --chip-done-ink
+- W2 light is missing --chip-stop-bg
+- W2 dark is missing --chip-stop-bg
+- W2 light is missing --chip-stop-ink
+- W2 dark is missing --chip-stop-ink
+- W2 light is missing --chip-review-bg
+- W2 dark is missing --chip-review-bg
+- W2 light is missing --chip-review-ink
+- W2 dark is missing --chip-review-ink
+- W2 light is missing --chip-work-bg
+- W2 dark is missing --chip-work-bg
+- W2 light is missing --chip-work-ink
+- W2 dark is missing --chip-work-ink
+- W2 --bg is light-only
+- W2 --bg-2 is light-only
+- W2 --ink is light-only
+- W2 --muted is light-only
+- W2 --line is light-only
+- W2 --gold is light-only
+- W2 --green is light-only
+- W2 --red is light-only
+- W2 --blue is light-only
+- W2 --amber is light-only
+- W1 no theme-color meta for light
+- W1 no theme-color meta for dark
+- W5 styles.css: body { background: radial-gradient(1200px 500px at 10% -10%, #2a3824 0%, transparent 55%),
+    var(--bg) }
+- W5 styles.css: input, textarea { background: #10150e }
+- W5 styles.css: button { color: #1b1608 }
+- W5 styles.css: .chip { background: #31402a }
+- W5 styles.css: .chip[data-status="drafted"] { background: #24532a }
+- W5 styles.css: .chip[data-status="failed"], .chip[data-status="cancelled"] { background: #4a2822 }
+- W5 styles.css: .chip[data-status="judging"], .chip[data-status="physical"] { background: #24364a }
+- W5 styles.css: .chip[data-status="combine"], .chip[data-status="grafting"], .chip[data-status="awaiting_go"] { background: #4a3a20 }
+- W5 styles.css: .card { background: #141b12 }
+- W5 styles.css: .pass-toggle button[aria-pressed="true"] { color: #1b1608 }
+- W5 styles.css: .score-col { background: #141b12 }
+- W5 styles.css: .base-mark { color: #1b1608 }
+- W5 timeline.css: .dd-stages li { background: #141b12 }
+- W6 intake uses #31402a / var(--ink), want var(--chip-bg) / var(--chip-ink)
+- W6 scouting uses #31402a / var(--ink), want var(--chip-bg) / var(--chip-ink)
+- W6 awaiting_go uses #4a3a20 / var(--amber), want var(--chip-work-bg) / var(--chip-work-ink)
+- W6 combine uses #4a3a20 / var(--amber), want var(--chip-work-bg) / var(--chip-work-ink)
+- W6 judging uses #24364a / var(--blue), want var(--chip-review-bg) / var(--chip-review-ink)
+- W6 grafting uses #4a3a20 / var(--amber), want var(--chip-work-bg) / var(--chip-work-ink)
+- W6 physical uses #24364a / var(--blue), want var(--chip-review-bg) / var(--chip-review-ink)
+- W6 drafted uses #24532a / var(--green), want var(--chip-done-bg) / var(--chip-done-ink)
+- W6 failed uses #4a2822 / var(--red), want var(--chip-stop-bg) / var(--chip-stop-ink)
+- W6 cancelled uses #4a2822 / var(--red), want var(--chip-stop-bg) / var(--chip-stop-ink)
+- W10 styles.css does not use env(safe-area-inset-left) and env(safe-area-inset-right)

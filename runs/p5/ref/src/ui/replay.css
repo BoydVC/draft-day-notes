@@ -1,0 +1,57 @@
+/* Draft Day Pick 5 (box reference build for SPEC 006): Replay mode. Tokens only. */
+.dd-replay { display: grid; gap: 12px; min-width: 0; }
+.dd-replay > * { min-width: 0; }
+.dd-replay-nav { display: flex; flex-wrap: wrap; gap: 8px; font-family: ui-sans-serif, system-ui, sans-serif; }
+.dd-replay a, .replay-link {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 44px;
+  min-width: 44px;
+  max-width: 100%;
+  padding: 0 10px;
+  overflow-wrap: anywhere;
+}
+.dd-replay .dd-event a { display: inline; min-height: 0; min-width: 0; padding: 0; }
+.dd-replay-title { margin: 0; }
+.dd-replay-idea { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
+.dd-replay-board { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.dd-replay-board p { margin: 0; }
+.dd-replay-clock { font: 700 2.2rem/1.1 ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; color: var(--gold); }
+.dd-replay-stage { font: 600 1.05rem/1.3 ui-sans-serif, system-ui, sans-serif; }
+.dd-replay-counter { color: var(--muted); font: 600 14px/1.3 ui-sans-serif, system-ui, sans-serif; }
+.dd-replay-caption { margin: 12px 0; font-size: 1.15rem; line-height: 1.45; overflow-wrap: anywhere; min-height: 3em; }
+.dd-replay-controls { display: grid; gap: 10px; }
+.dd-replay-slider { width: 100%; min-height: 44px; font-size: 16px; padding: 0; accent-color: var(--gold); background: transparent; border: 0; }
+.dd-replay-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.dd-replay-btn { min-height: 44px; min-width: 44px; }
+.dd-replay-btn:disabled { opacity: 0.45; cursor: default; }
+.dd-replay-btn[data-control="play"] { min-width: 96px; }
+.dd-replay-side { display: grid; gap: 12px; }
+.dd-replay-side .panel, .dd-replay-log { margin: 0; }
+.dd-replay-runs, .dd-replay-stages { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.dd-replay-runs li, .dd-replay-stages li {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: var(--card);
+  font: 14px/1.3 ui-sans-serif, system-ui, sans-serif;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.dd-replay-runs li[data-state="running"] { border-color: var(--amber); }
+.dd-replay-runs li[data-state="verified"], .dd-replay-runs li[data-state="pr_opened"] { border-color: var(--green); }
+.dd-replay-runs li[data-state="not_verified"], .dd-replay-runs li[data-state="errored"], .dd-replay-runs li[data-state="abandoned"] { border-color: var(--red); }
+.dd-replay-stages li[aria-current="step"] { border-color: var(--gold); font-weight: 700; }
+.dd-replay-plays { margin: 0; padding-left: 1.1em; }
+.dd-replay-plays li[aria-current="true"] { font-weight: 700; }
+@media (min-width: 900px) {
+  .dd-replay { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
+  .dd-replay-nav, .dd-replay-title, .dd-replay-idea, .dd-replay-log { grid-column: 1 / -1; }
+}
+@media (max-width: 480px) {
+  .dd-replay-buttons { display: grid; grid-template-columns: 1fr 1fr; }
+  .dd-replay-btn[data-control="play"] { grid-column: 1 / -1; order: -1; }
+  .dd-replay-btn { width: 100%; }
+  .dd-replay-clock { font-size: 2.6rem; }
+}

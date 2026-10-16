@@ -1,0 +1,27 @@
+{
+  "id": "p-20261017-94",
+  "by": "grok-bot",
+  "provenance": "Draft Day Pick 4 (SPEC 005, Phone War Room), driven by hand by Grok Bot on Sat Oct 17, 2026. Run edges are the first and last tool timestamps in each Cursor agent transcript (CloudAgent dump). Other events use LOG.tsv row times or file birth times. Reports are the agents' own dd-report / dd-judgement / dd-verdict blocks, unedited.",
+  "steps": [
+    {"ts": "2026-10-17T18:11:30.075Z", "type": "pick_created", "idea": "Phone War Room: mobile layout, dark mode, big status chips, and a New pick form usable on an iPhone", "source": "plan", "target": "BoydVC/draft-day", "n": 3, "approval": "ask", "why": "fixtures/phone/dom-harness.mjs birth time (first Pick 4 artifact)"},
+    {"ts": "2026-10-17T18:48:33.000Z", "type": "scouting_report_written", "reportFile": "report.json", "why": "LOG.tsv 14:48:33 ET: SPEC-005 + LAUNCH-005 written"},
+    {"ts": "2026-10-17T20:09:36.000Z", "type": "scouting_approved", "via": "human", "why": "LOG.tsv 16:09:36 ET: step 0.5 re-ground, go"},
+    {"ts": "2026-10-17T20:10:11.766Z", "type": "candidate_launched", "cand": "c1", "agentId": "bc-cd58a6b5-35a1-5fd0-bce8-730683fbeecc", "branch": "dd/p4-phone-a"},
+    {"ts": "2026-10-17T20:10:15.577Z", "type": "candidate_launched", "cand": "c2", "agentId": "bc-2b916ec2-d672-543c-ae3a-e4c084693223", "branch": "dd/p4-phone-b"},
+    {"ts": "2026-10-17T20:10:25.146Z", "type": "candidate_launched", "cand": "c3", "agentId": "bc-a8f0e387-2f14-5eb1-830b-b5094646502c", "branch": "dd/p4-phone-c"},
+    {"ts": "2026-10-17T20:28:31.800Z", "type": "candidate_finished", "cand": "c3", "file": "c3-final.md"},
+    {"ts": "2026-10-17T20:29:32.706Z", "type": "candidate_finished", "cand": "c1", "file": "c1-final.md"},
+    {"ts": "2026-10-17T20:30:14.015Z", "type": "candidate_finished", "cand": "c2", "file": "c2-final.md"},
+    {"ts": "2026-10-17T20:31:54.806Z", "type": "judge_launched", "order": ["c3", "c2", "c1"], "labels": {"A": "c3", "B": "c2", "C": "c1"}, "agentId": "bc-366cbc33-d315-5845-85db-7eb4de31c50b"},
+    {"ts": "2026-10-17T21:05:09.398Z", "type": "judgement_recorded", "file": "judge-pass1.md", "secondRead": "agree", "note": "Box oracles on all three: 0 problems, 53/53; c1's 1280 W8 miss is real and matches the trade list."},
+    {"ts": "2026-10-17T21:07:16.821Z", "type": "judge_launched", "order": ["c1", "c2", "c3"], "labels": {"A": "c1", "B": "c2", "C": "c3"}, "agentId": "bc-823a4a2e-9be6-5800-b1d9-0edf033da2ef"},
+    {"ts": "2026-10-17T21:20:05.194Z", "type": "judgement_recorded", "file": "judge-pass2.md", "secondRead": "agree", "note": "Swap consistent; base c1."},
+    {"ts": "2026-10-17T21:22:27.696Z", "type": "graft_launched", "agentId": "bc-5944e10e-ccd8-5fa2-bfa1-46e0a657f88d"},
+    {"ts": "2026-10-17T21:34:38.249Z", "type": "graft_recorded", "prNumber": 6, "headSha": "c6cfad415576c2c14653955aff972a6d8c613ab1", "summary": "Grafted c2's intake outcome table and c3's phone cell captions onto the c1 token ledger."},
+    {"ts": "2026-10-17T21:35:52.312Z", "type": "physical_launched", "agentId": "bc-dfca604f-3c6e-5d41-bcfb-5886b24bc045"},
+    {"ts": "2026-10-17T21:48:08.983Z", "type": "verdict_recorded", "file": "verdict1.md"},
+    {"ts": "2026-10-17T21:51:43.000Z", "type": "lesson_recorded", "topic": "touch-map", "text": "Pre-declare orchestrator-ordered graft adds (docs/SPEC-*, pooled test files) in the touch map; this NOT_VERIFIED was a re-check, not a fix loop.", "why": "LOG.tsv 17:51:43 ET ruling"},
+    {"ts": "2026-10-17T21:52:13.050Z", "type": "verdict_recorded", "file": "verdict2.md"},
+    {"ts": "2026-10-17T21:53:01.000Z", "type": "draft_pr_confirmed", "prNumber": 6, "why": "LOG.tsv 17:53:01 ET: draft true confirmed"}
+  ]
+}

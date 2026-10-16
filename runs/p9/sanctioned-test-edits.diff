@@ -1,0 +1,19 @@
+--- a/test/bigboard.pooled.test.ts
++++ b/test/bigboard.pooled.test.ts
+@@ -28,6 +28,7 @@
+   type PickLog,
+ } from "./fixtures/bigboard/bigboard-harness.mjs";
+ import { byName, find as domFind, loadWarRoom, text as domText } from "./fixtures/phone/dom-harness.mjs";
++import { swapOracle } from "./fixtures/swap/swap-harness.mjs";
+ 
+ const exec = promisify(execFile);
+ const root = process.cwd();
+@@ -146,7 +147,7 @@
+ }
+ 
+ function oracle(input: readonly PickLog[], window?: { since: string | null; until: string | null } | null, now = NOW): BigBoardStats {
+-  return bigBoardOracle(input, window, now);
++  return { ...bigBoardOracle(input, window, now), swap: swapOracle(input, window, now) } as BigBoardStats;
+ }
+ 
+ function dropPick6Verdict(input: readonly PickLog[]): PickLog[] {

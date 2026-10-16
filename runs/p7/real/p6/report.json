@@ -1,0 +1,159 @@
+{
+ "restatement": "Add a Scouting Report linter that Boyd (and Grok Bot, writing a scout) can run before Combine. Given a LintDocument — a ScoutingReport plus an optional checks map from each EARS id to a test or journey ref — it emits a machine-readable LintReport: each rubric criterion → gradeable?/severity/why; each EARS line → check ref or MISSING; each angle pair → Jaccard score and collision flag. Hard findings (ungradeable criterion, missing EARS check, colliding angles, duplicate ids) make ok: false. Soft warnings (weak but pointer-bearing howToGrade) leave ok: true with a non-empty soft list.",
+ "acceptance": [
+  {
+   "id": "S1",
+   "when": "lintScoutingReport runs on good-replay.json and good-lessons.json",
+   "shall": "return ok: true, summary pass, empty hard and soft, and angle pairs all with collide: false. (Baseline: no function.)"
+  },
+  {
+   "id": "S2",
+   "when": "it runs on hostile-ungradeable.json",
+   "shall": "hard-fail criteria frames, deck, and screen with the harness whys (empty / no pointer). (Baseline: 0.)"
+  },
+  {
+   "id": "S3",
+   "when": "it runs on hostile-missing-ears.json",
+   "shall": "mark EARS R2, R5, R14, R19, R20 as MISSING and leave R1 ok. (Baseline: 0.)"
+  },
+  {
+   "id": "S4",
+   "when": "it runs on hostile-collide-angles.json",
+   "shall": "report pair 0-1 with score: 0.75 and collide: true, and no other colliding pair. (Baseline: 0.)"
+  },
+  {
+   "id": "S5",
+   "when": "it runs on hostile-soft.json",
+   "shall": "return ok: true, summary pass with 1 soft warning, and soft id tests. (Baseline: 0.)"
+  },
+  {
+   "id": "S6",
+   "when": "parseMarkdownScout runs on good-markdown.md",
+   "shall": "produce checks T1=test/linter.test.ts:T1, T2=test/linter.test.ts:T2, T3=journey:linter-panel, and lintScoutingReport of that document SHALL pass. (Baseline: 0.)"
+  },
+  {
+   "id": "S7",
+   "when": "every fixture's expectedFor(lint(…)) is compared to expected.json",
+   "shall": "match all eight rows exactly. (Baseline: 0.)"
+  },
+  {
+   "id": "S8",
+   "when": "howToGrade is cleared on good-replay's frames criterion, and when two angles are set identical",
+   "shall": "flip ok to false for each mutation. (Baseline: 0.)"
+  },
+  {
+   "id": "S9",
+   "when": "parseScoutingReport reads a report without checks",
+   "shall": "still succeed; WHEN it reads one with a string→string checks map THE SYSTEM SHALL attach it. (Baseline: parse ignores checks.)"
+  },
+  {
+   "id": "S10",
+   "when": "dd lint-scout test/fixtures/linter/good-replay.json runs",
+   "shall": "exit 0 and print a text report whose first line contains pass; WITH --json THE SYSTEM SHALL print a LintReport with ok: true. WHEN the file is hostile-missing-ears.json THE SYSTEM SHALL exit 1 (or 2) and print fail. dd help SHALL list dd lint-scout."
+  },
+  {
+   "id": "S11",
+   "when": "POST /api/lint-scout is called with good-replay.json",
+   "shall": "return 200 and the same ok: true report; WITH invalid JSON THE SYSTEM SHALL return 400 {\"error\":…}."
+  },
+  {
+   "id": "S12",
+   "when": "#/picks/<id>/linter opens for a seeded pick",
+   "shall": "show the Linter DOM with data-ok matching the lint of that pick's report; WHEN the pick page renders THE SYSTEM SHALL carry a Lint link to that hash. (Baseline: hash falls through to pick or board.)"
+  },
+  {
+   "id": "S13",
+   "when": "hostile-markup.json is rendered in the panel",
+   "shall": "create no img, script, or iframe node and no on* attribute in #app, and every visible hostile string SHALL appear as text."
+  },
+  {
+   "id": "S14",
+   "when": "src/ui/linter.js and linter.css are read",
+   "shall": "contain no fetch( in linter.js (app.js may fetch), no viewport reads (W11), no color literals in linter.css (W5 with linter.css added), no innerHTML/eval/localStorage/history., and SHALL assign globalThis.draftDayLinter."
+  },
+  {
+   "id": "S15",
+   "when": "http.ts and index.html are read",
+   "shall": "list \"/linter.js\" and \"/linter.css\" in the static files array after the replay entries, link stylesheets … replay.css, linter.css, and load scripts … replay.js, linter.js, app.js."
+  },
+  {
+   "id": "S16",
+   "when": "the Linter panel is probed with cdp-shot.mjs at 390×844 and 1280×800 in light and dark on a failing state and a passing state (8 runs)",
+   "shall": "print \"ok\":true, \"offOrigin\":[], scrollWidth ≤ width, and every Linter control and link ≥ 44×44 at every width including 1280; WHEN the pick page is probed at 390 dark THE SYSTEM SHALL stay \"ok\":true and show the Lint link. (Baseline: no panel.)"
+  },
+  {
+   "id": "S17",
+   "when": "npm test runs after this change",
+   "shall": "still pass every earlier test (SPEC 001–006 suites, import boundary, network grep, T18, L18, W1–W17) with test/guards.test.ts byte-identical, zero runtime dependencies, the 12 uploads byte-identical (sha256 above), test/fixtures/{phone,replay,lessons,timeline}/* unchanged, dd selftest printing its happy, policy, walkover and close lines unchanged, and git diff --name-only START...HEAD inside the touch map."
+  },
+  {
+   "id": "S18",
+   "when": "the verify skill's features/linter.md is driven",
+   "shall": "produce the eight screenshots of VERIFY 6, commit them under docs/screens/p6-linter/, list their repo paths in the dd-report screenshots field, and show paste-and-Lint flipping a fail state to pass in a real browser."
+  }
+ ],
+ "rubric": [
+  {
+   "id": "lint",
+   "name": "Lint fidelity on fixtures",
+   "weight": 3,
+   "howToGrade": "Your pooled S1–S8. Then by hand: run lintScoutingReport (or the public core export) on every uploaded JSON fixture and compare with expected.json; run parseMarkdownScout on good-markdown.md. 4 = every fixture matches expectedFor and the three mutations in the oracle (empty howToGrade, identical angles, collide 0.75) each flip ok. One wrong severity on a real fixture = 2 at most. Re-implementing the Jaccard threshold as a different number = 1 at most."
+  },
+  {
+   "id": "ears",
+   "name": "EARS coverage binding",
+   "weight": 3,
+   "howToGrade": "S3, S9. Confirm CHECK_RE, MISSING on absent keys, and that parseScoutingReport still accepts reports without checks. 4 = missing-ears fixture yields exactly R2,R5,R14,R19,R20 MISSING and good-replay binds all six. Soft-only changes never clear a MISSING."
+  },
+  {
+   "id": "angles",
+   "name": "Angle distinctness",
+   "weight": 2,
+   "howToGrade": "S4, S8. 4 = collide fixture pair 0-1 scores 0.75 and collide: true; good-replay pairs all score 0; identical-angle mutation hard-fails. A threshold other than 0.45 without a DECISIONS row = 1 at most."
+  },
+  {
+   "id": "screen",
+   "name": "Linter panel screens",
+   "weight": 3,
+   "howToGrade": "Run cdp-shot.mjs per label on #/picks/<seeded-id>/linter (or the seeded linter route) at 390×844 and 1280×800, light and dark, once on a failing fixture state and once on a passing paste (8 runs), plus the pick page at 390 dark showing the Lint link. 4 = every probe ok: true, scrollWidth ≤ width, every Linter control and link ≥ 44×44 at every width including 1280, and from the 390 dark fail screenshot you can say within 5 seconds that it failed and which EARS are MISSING. 2 = one W7/W8/W9 problem left. 0 = sideways scroll at 390 or a control under 44×44 at 1280. Screenshots required for a 3 or 4."
+  },
+  {
+   "id": "safety",
+   "name": "Untrusted report text safety",
+   "weight": 2,
+   "howToGrade": "Re-run the safety-fact proof with hostile-markup.json and your own extras: restatement, angle, when, and forbidden carrying markup; an angle carrying javascript:alert(1). Grep src/ui/linter.* for innerHTML, outerHTML, insertAdjacentHTML, document.write, eval(, new Function, localStorage, sessionStorage, document.cookie, history., @import, url(http, //fonts.. Any off-origin request, markup from report text, or stored state = 0."
+  },
+  {
+   "id": "stack",
+   "name": "Clean stack, small diff",
+   "weight": 2,
+   "howToGrade": "git diff --name-only START...<sha> stays inside the touch map; any edit to a do-not-touch file caps this at 1. git diff START -- src/server/http.ts is the static files line plus the POST /api/lint-scout handler (no unrelated churn). git merge-base --is-ancestor START <sha> holds; if dd/p5-replay moved, git merge-tree --write-tree --name-only <sha> origin/dd/p5-replay conflicts at most in docs/DECISIONS.tsv. Compare diff.added + diff.removed with the others (PNG files count as files, not lines). Zero runtime deps."
+  }
+ ],
+ "designSketch": "Boyd, phone in dark mode, opens Pick 5's page, taps Lint:\n  Big Board   Replay   Lint                         (each ≥ 44×44)\n  Scouting linter · p-20261017-94\n  [ FAIL · 5 hard ]\n  Rubric gradeability:  frames ok · deck ok · screen ok · …\n  EARS coverage:        R1 ok · R2 MISSING · R5 MISSING · …\n  Angle pairs:          0-1 ok (0.00) · 0-2 ok · 1-2 ok\n  Hard findings:        ears:R2 no check binding · …\nHe pastes good-replay.json into the textarea, taps Lint: PASS.\nAt 1280 the three lists sit in columns; at 390 they stack under the summary chip.\nGrok Bot runs: dd lint-scout fixtures/linter/good-replay.json --json → {\"ok\":true,…}",
+ "verifyPlan": [
+  "npm test green; test/linter.test.ts names each test with its S-id.",
+  "npx tsc --noEmit exit 0.",
+  "node --experimental-strip-types src/cli/dd.ts selftest exit 0, printing DATA_DIR=… and the lines happy … drafted, policy … failed, walkover … drafted, close … drafted.",
+  "node --experimental-strip-types src/cli/dd.ts doctor output.",
+  "sha256sum test/fixtures/linter/*: all twelve must equal the sha256 values at the top of this spec. Run git diff --quiet START -- test/guards.test.ts package.json src/core/lessons.ts src/core/timeline.ts src/core/filmroom.ts src/core/score.ts src/core/reducer.ts src/store src/briefs test/fixtures/phone test/fixtures/timeline test/fixtures/lessons test/fixtures/replay src/ui/styles.css src/ui/timeli",
+  "Verify skill (update first, then execute once):",
+  "Safety fact (blast-radius, prove at certainty 4 = ran it): \"No LintDocument (good, hostile, markdown, or pasted), and no sequence of opening the Linter panel, pasting, or pressing Lint, can make the linter request anything off-origin, render report text as markup, draw an href from report fields, or store anything in localStorage, sessionStorage, cookies, or history.\" Prove it with a script or tes",
+  "Stack probe: git merge-base --is-ancestor START HEAD && echo on-stack. Then git fetch origin dd/p5-replay && git rev-parse FETCH_HEAD. If that is not START, run git merge-tree --write-tree --name-only HEAD FETCH_HEAD and paste the result (conflicts should be at most docs/DECISIONS.tsv); otherwise write START_REF unchanged. If this git is older than 2.38, use a scratch worktree: git merge --no-comm",
+  "git diff --name-only START...HEAD pasted; every path must be allowed by the touch map (the grafter's three sanctioned kinds of path included)."
+ ],
+ "safetyFact": "No LintDocument (good, hostile, markdown, or pasted), and no sequence of opening the Linter panel, pasting, or pressing Lint, can make the linter request anything off-origin, render report text as markup, draw an href from report fields, or store anything in localStorage, sessionStorage, cookies, or history.",
+ "angles": [
+  "Rule ledger: start from the three check families; src/core/linter.ts is one registry of rules (gradeability, EARS, angles) checked with satisfies so a new rule fails tsc until its row is complete; one pure lintScoutingReport, thin CLI and POST /api/lint-scout, and a minimal panel that renders the JSON with the binding DOM names; table-driven tests drive every fixture through the harness expectedFor.",
+  "Scout checklist: start from the War Room; the Linter panel reads like a scout's clipboard: a big pass/fail chip, three checklists (rubric, EARS, angles) with severity chips, paste-and-Lint on the phone in one thumb-reach stack (safe-area aware); tokens only, both schemes; transitions only inside @media (prefers-reduced-motion: no-preference); paused on any 390 px dark screenshot, a stranger can say pass or fail, which EARS are MISSING, and whether angles collide.",
+  "Coverage matrix: start from the matrices; EARS×checks as a coverage grid and angles as a pairwise score matrix (cells at least 44x44 on desktop; stacked definition lists on phone); collision and MISSING cells marked aria-invalid / aria-current; VoiceOver order summary, paste, rubric, EARS, angles, hard, soft; extra chrome never breaks the binding DOM or the probe."
+ ],
+ "forbidden": [
+  "Draft PRs only. Never mark a PR ready for review, never merge, never enable auto-merge, never deploy or publish anything.",
+  "Candidates open no pull request at all (push your branch only). If your environment opens one automatically, it must be a draft with base dd/p5-replay, and say so in your report.",
+  "Touch only BoydVC/draft-day. Nothing KPD, kpdlawgroup, or debt-collection related, in code, fixtures, tests or examples.",
+  "Do not push to main, dd/scaffold, dd/p1-film-room*, dd/p2-timeline*, dd/p3-lessons*, dd/p4-phone* or dd/p5-replay*, and do not force-push.",
+  "Do not edit a file the touch map marks do-not-touch.",
+  "No runtime dependencies, no network code (the A15 guard in test/guards.test.ts stays as is), no secrets, no LLM calls, no web fonts or other-origin assets, no localStorage/sessionStorage/cookies/history writes."
+ ]
+}

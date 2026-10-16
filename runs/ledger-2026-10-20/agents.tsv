@@ -1,0 +1,17 @@
+purpose	agent	branch	sha
+verify PR12	bc-a9501b68-a9a3-53c9-afe9-392774cd724c	dd/p10-polish	f538403f4271eef15b25b35f113ba81a6b23d54d
+skill pass	bc-b19f6eef-5189-55ca-9ab8-bd4c9130a6ef	dd/p10-polish	f538403f4271eef15b25b35f113ba81a6b23d54d
+rerun PR1	bc-2be84932-09e2-5db8-83ba-f96fa874149b	dd/scaffold	4edd03a0e7c164da9d1e0be685832a23b15e35f7
+rerun PR2	bc-4bdb375c-7b2d-567d-8cee-80b1569309a5	dd/p1-film-room	84ed4466d0b45b9067c47b3e16470be0a23ae98b
+rerun PR3	bc-57b30d20-e7f7-56e7-abe3-0d0199cfe5d4	dd/p2-timeline	8230d9b7390d3f55a6a44a2315a8288d3b937134
+rerun PR5	bc-c293162c-00dc-565f-bcdf-1810005ef96c	dd/p3-lessons	1f8610bbd5ddbe4d0f49dbfd319a1eec8a96689f
+rerun PR6	bc-07fe0123-8d1c-55df-8c60-d8431766e93f	dd/p4-phone	154cb7110684302a1724a094313fe371776dfd99
+rerun PR7	bc-294337b6-06be-52de-a876-221d9fc60693	dd/p5-replay	d1bd73c075173336f2d3a15b3a2ee288163b7b32
+rerun PR8	bc-a9397239-a9e6-5c70-ae15-fd91e96269ce	dd/p6-linter	dc38660f2f3fdaadcfd2e879693e24cb21a05eba
+rerun PR9	bc-8a1d5abe-94e0-5082-9aeb-e73f2a76e2e3	dd/p7-big-board	93dca59db747e8306ab460e38d7ddf978031987e
+rerun PR10	bc-c3a3b720-8c05-5eab-8c51-ee90159b4766	dd/p8-season-ledger	ace89ea6b0e208c3b7ec47a9b50ebd7176d30f3d
+rerun PR11	bc-a95ccca7-0aff-5f80-bce3-c58d255f5b50	dd/p9-engine-hardening	af1e78cf383fbc549b459bba7107a7d0fdf1e026
+c1 bias ledger	bc-2d16817b-f093-5e89-83c7-0b5e3b18c276	dd/p11-swap-bias-a	f538403
+c2 flip gauge	bc-349d7c3b-91c0-5a55-8bf8-9625d937ba5b	dd/p11-swap-bias-b	f538403
+c3 evidence trail	bc-7758d5eb-2944-512d-9762-4167f4e120e3	dd/p11-swap-bias-c	f538403
+fix12 loop1	bc-11de4d7f-bcd6-5a65-b12f-04a3908fdb86	dd/p10-polish	f538403

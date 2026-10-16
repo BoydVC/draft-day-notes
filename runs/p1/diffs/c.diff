@@ -1,0 +1,2442 @@
+diff --git a/.cursor/skills/verify-draft-day/SKILL.md b/.cursor/skills/verify-draft-day/SKILL.md
+index 52a7fd9..77fdfe2 100644
+--- a/.cursor/skills/verify-draft-day/SKILL.md
++++ b/.cursor/skills/verify-draft-day/SKILL.md
+@@ -20,11 +20,11 @@ From the repo root, with Node 22+:
+ The helper:
+ 
+ 1. Makes an empty data directory under `/tmp`.
+-2. Runs `node --experimental-strip-types src/cli/dd.ts selftest --keep --data "$DATA"` so the board already has a drafted pick, a policy refusal, and a walkover.
++2. Runs `node --experimental-strip-types src/cli/dd.ts selftest --keep --data "$DATA"` so the board already has a drafted happy pick, a policy refusal, a walkover, and a close Film Room pick.
+ 3. Starts `node --experimental-strip-types src/cli/dd.ts serve --data "$DATA" --host 127.0.0.1 --port "$PORT"`.
+ 4. Waits until the log line `War Room listening on http://127.0.0.1:$PORT` appears and `GET /api/board` returns JSON.
+ 
+-Ready means the Big Board lists those three picks. A process that merely accepts a socket is not ready. The helper writes `/tmp/dd-verify/state.env` with `DATA`, `PORT`, `PID`, and `URL`.
++Ready means the Big Board lists those four picks. A process that merely accepts a socket is not ready. The helper writes `/tmp/dd-verify/state.env` with `DATA`, `PORT`, `PID`, and `URL`.
+ 
+ Override the port with `PORT=45921 .cursor/skills/verify-draft-day/helpers/control.sh launch` when 45920 is taken.
+ 
+@@ -59,8 +59,11 @@ Capture the action and the resulting state.
+ 
+ - Screenshot the Big Board after the seeded picks are visible, then again after `Add pick` shows the new row.
+ - Screenshot the pick page for the drafted happy-path pick, including the scorecard.
++- Screenshot the close pick's Scorecard at 1280×800 (`film-room-flipped.png`), after Pass 1 (`film-room-pass1.png`), and at 390×844 (`film-room-phone.png`).
++- Screenshot the happy pick's Single pass chip (`film-room-single.png`).
++- Screenshot a scorecard that appears after `judgement_recorded` without a reload (`film-room-live.png`) and one whose judge base loses (`film-room-disagree.png`).
+ - Save files under `/opt/cursor/artifacts/war-room/`.
+-- A passing board proof shows the seeded picks and the submitted idea. A passing pick proof shows the status chip, the scouting restatement, and the scorecard.
++- A passing board proof shows the seeded picks and the submitted idea. A passing pick proof shows the status chip, the scouting restatement, and the scorecard. A passing Film Room proof shows `BASE`, the swap chip, and the reason sentence.
+ - Confirm the side effect: `GET /api/board` includes the inbox row, and `$DATA/intake.jsonl` grew by one line. `POST /api/intake` does not write `events.jsonl`.
+ 
+ ## Cleanup
+diff --git a/.cursor/skills/verify-draft-day/features/README.md b/.cursor/skills/verify-draft-day/features/README.md
+index f8aa5c3..3a078c9 100644
+--- a/.cursor/skills/verify-draft-day/features/README.md
++++ b/.cursor/skills/verify-draft-day/features/README.md
+@@ -6,7 +6,7 @@ This directory is the maintained source for verifying the War Room. Read the ind
+ 
+ - Launch with `.cursor/skills/verify-draft-day/helpers/control.sh launch`.
+ - The server is on `127.0.0.1` at the port in `/tmp/dd-verify/state.env`.
+-- `dd selftest --keep` has seeded a drafted pick, a policy refusal, and a walkover in that data directory.
++- `dd selftest --keep` has seeded a drafted happy pick, a policy refusal, a walkover, and a close Film Room pick in that data directory.
+ - Run `control.sh doctor` and require a live PID, a 200 from `/api/board`, and five doctor lines.
+ - Never drive a War Room this run did not start. Two runs need two ports and two data directories.
+ 
+@@ -30,4 +30,5 @@ This directory is the maintained source for verifying the War Room. Read the ind
+ - [Big Board](./big-board.md) lists seeded picks with status chips and run counts.
+ - [New pick](./new-pick.md) queues an idea from the form into the inbox and onto the board.
+ - [Pick page](./pick-page.md) shows the scouting report, candidates, scorecard, trades, physical, and decision log.
++- [Film Room](./film-room.md) shows the Scorecard: base, swap, pass toggle, and the reason sentence.
+ - [Live updates](./live-updates.md) refresh the open board or pick page when an event or inbox row lands.
+diff --git a/.cursor/skills/verify-draft-day/features/big-board.md b/.cursor/skills/verify-draft-day/features/big-board.md
+index bebe5e2..f1d2b03 100644
+--- a/.cursor/skills/verify-draft-day/features/big-board.md
++++ b/.cursor/skills/verify-draft-day/features/big-board.md
+@@ -4,8 +4,8 @@ The Big Board lists every pick and any idea still sitting in the inbox, with a s
+ 
+ ## Sub-features
+ 
+-- `board-seeded` shows the three picks created by `dd selftest --keep`.
+-- `board-status` shows a drafted chip, a failed chip, and a drafted walkover chip.
++- `board-seeded` shows the four picks created by `dd selftest --keep`.
++- `board-status` shows drafted chips, a failed chip, and a drafted walkover chip.
+ - `board-empty` is the table copy when the data directory has no picks and no inbox rows.
+ 
+ ## How to get to it (user POV)
+@@ -21,8 +21,8 @@ Preconditions:
+ - The seeded selftest has finished in this run's data directory.
+ 
+ - **Open the board.** Load `$URL/`. The heading reads `War Room` and the region named `Big Board` is visible.
+-- **Read the rows.** The table contains three pick links. One status chip reads `drafted`, one reads `failed`, and the runs column is not blank.
+-- **Proof.** Screenshot `/opt/cursor/artifacts/war-room/big-board.png` with the heading and the three rows visible. `GET $URL/api/board` returns the same three pick ids.
++- **Read the rows.** The table contains four pick links. A status chip reads `drafted`, a status chip reads `failed`, and the runs column is not blank.
++- **Proof.** Screenshot `/opt/cursor/artifacts/war-room/big-board.png` with the heading and the four rows visible. `GET $URL/api/board` returns the same four pick ids.
+ 
+ ## Gotchas
+ 
+diff --git a/.cursor/skills/verify-draft-day/features/film-room.md b/.cursor/skills/verify-draft-day/features/film-room.md
+new file mode 100644
+index 0000000..74ec75e
+--- /dev/null
++++ b/.cursor/skills/verify-draft-day/features/film-room.md
+@@ -0,0 +1,39 @@
++# Film Room scorecard
++
++The Scorecard is the first thing on a judged pick page. It tells Boyd, from a phone, who the base is and why. Columns are finished candidates. Pass 1 and Pass 2 are buttons when a second pass ran.
++
++## Sub-features
++
++- `film-room-read` opens the close pick and reads the base, the swap chip, the close-call chip, and the tie-rule sentence.
++- `film-room-pass` presses Pass 1 and shows that pass's ranks.
++- `film-room-phone` lays the same scorecard out at 390×844.
++- `film-room-single` opens the happy pick and reads Single pass.
++- `film-room-live` paints a new scorecard after `judgement_recorded` without a reload.
++- `film-room-disagree` shows the judge sentence and the second-read note.
++
++## How to get to it (user POV)
++
++- On the Big Board, choose the pick whose idea is `Show the scorecard pass toggle on the pick page`.
++- Or paste `#/picks/<id>` onto the War Room origin.
++
++## Driving it with the browser
++
++Preconditions:
++
++- `control.sh doctor` passes.
++- `dd selftest --keep` has seeded the close pick (`drafted`, two judge passes, `swap: flipped`).
++
++- **Read the close scorecard.** Open that pick. The region named `Scorecard` is on the page. It shows a chip `Swap: flipped`, a chip `Close call`, and the text `BASE` on the base column. The reason sentence names the split and the tie rule (`diff_lines`). Each column heading is `<cand> · <label>` and shows that candidate's angle. Rows read `Gates`, `Cross-tests`, `<name> ×<weight>`, `Weighted`, `Rank`, and `Diff`.
++- **Proof.** Scroll `#scorecard` into view. Screenshot `/opt/cursor/artifacts/war-room/film-room-flipped.png` at 1280×800. The shot shows `BASE`, `Swap: flipped`, `Close call`, and the tie-rule sentence.
++- **Pass 1.** Press the button named `Pass 1`. It reports `aria-pressed` true, and `Pass 2` reports false. The status reads `Showing pass 1.` Rank 1 on this pass is not the same candidate as rank 1 on pass 2. Screenshot `/opt/cursor/artifacts/war-room/film-room-pass1.png`.
++- **Phone.** Set the viewport to 390×844, still on the Scorecard. The columns stack in one column, the base column leads, and the reason stays readable without a horizontal scrollbar. Screenshot `/opt/cursor/artifacts/war-room/film-room-phone.png`.
++- **Single pass.** Open the happy-path pick (`Add a status legend to the War Room`). The Scorecard chip reads `Single pass`. There are no Pass 1 / Pass 2 buttons. Screenshot `/opt/cursor/artifacts/war-room/film-room-single.png`.
++- **Live.** In `$DATA`, `dd intake` a new pick, then `dd record` the scouting report, approval, three `candidate_finished` reports, and `judge_launched`. Open `#/picks/<id>` and confirm the Scorecard says it has not been scored. Then `dd record <id> judgement_recorded --file judgement.md`. Within 2 seconds the Scorecard renders without a reload. Screenshot `/opt/cursor/artifacts/war-room/film-room-live.png`.
++- **Disagree.** That same judgement names a judge `base` label that loses, and the record command passes `--second-read disagree --note "…"`. The Scorecard shows `Judge picked <cand>; the board picked <cand>.` and the note. Screenshot `/opt/cursor/artifacts/war-room/film-room-disagree.png`.
++
++## Gotchas
++
++- The walkover pick is drafted and has no scorecard. The close pick is the one with the pass toggle.
++- Pass buttons are in the group named `Judge pass`. A reload is not the toggle.
++- On a phone the base column is ordered first. The accessible names of the columns stay `<cand> · <label>`.
++- Cleanup does not delete `/opt/cursor/artifacts/war-room/`.
+diff --git a/.cursor/skills/verify-draft-day/features/pick-page.md b/.cursor/skills/verify-draft-day/features/pick-page.md
+index f7e99e1..0d47c59 100644
+--- a/.cursor/skills/verify-draft-day/features/pick-page.md
++++ b/.cursor/skills/verify-draft-day/features/pick-page.md
+@@ -23,7 +23,7 @@ Preconditions:
+ 
+ - **Open the pick.** Choose the link whose text is that pick id. The URL hash is `#/picks/<id>` and the page heading is that id. A status chip reads `drafted`.
+ - **Read the report.** The region named `Scouting report` contains the restatement about the War Room showing each pick.
+-- **Read the scorecard.** The region named `Scorecard` has a table with a Criterion column and label columns. The base line names a candidate.
++- **Read the scorecard.** The region named `Scorecard` shows one column per finished candidate, headed with the candidate and its label, plus that candidate's angle. On this pick the chip reads `Single pass` and the base column is marked `BASE`.
+ - **Read the physical.** The region named `Physical` contains `VERIFIED` and a `Draft PR` link.
+ - **Return.** Choose `Big Board`. The hash is empty or `#/` and the table is back.
+ - **Proof.** Screenshot `/opt/cursor/artifacts/war-room/pick-page.png` while the scorecard and the drafted chip are visible.
+diff --git a/docs/DECISIONS.tsv b/docs/DECISIONS.tsv
+index 80377b0..fb6b9e9 100644
+--- a/docs/DECISIONS.tsv
++++ b/docs/DECISIONS.tsv
+@@ -5,7 +5,11 @@ ts	phase	decision	why	evidence	result
+ 2026-10-16T16:40:00Z	state	scouting is an alias of intake inside next()	The glossary names both, and only intake is event-sourced before the report	src/core/next.ts	open
+ 2026-10-16T16:40:00Z	state	Exactly one finished candidate skips Film Room and Trade	ARCHITECTURE 3.3 calls that a walkover; zero finished fails the pick	src/core/next.ts	open
+ 2026-10-16T16:40:00Z	score	Second judge pass when the top two weighted means are within 10 percent	A8; weighted mean is sum(score*weight)/sum(weight)	src/core/score.ts	open
+-2026-10-16T16:40:00Z	score	Disagreeing passes use fewer risks, then fewer commands, then lower cand id	Arena tie rule needs a deterministic smaller-and-cleaner pick	src/core/score.ts	open
++2026-10-16T16:40:00Z	score	Disagreeing passes use fewer risks, then fewer commands, then lower cand id	Arena tie rule needs a deterministic smaller-and-cleaner pick	src/core/score.ts	replaced
++2026-10-17T14:10:00Z	score	Tie rule is fewer diff lines, then fewer files, then fewer reported risks, then the lower cand id; a missing diff loses to a present one	SPEC 002 F9 replaces the old risks-then-commands order; the judge's own base is advisory	src/core/filmroom.ts	open
++2026-10-17T14:10:00Z	score	A missing rubric score counts as 0 and the denominator is every rubric weight	A card that skips a criterion must not outscore one that answers it badly	src/core/score.ts	open
++2026-10-17T14:10:00Z	score	Cross-pass tie uses each winner's diff from the latest pass that scored them	The later measurement is the one the board can still see	src/core/filmroom.ts	open
++2026-10-17T14:10:00Z	ui	The Scorecard leads the pick page; at 390px the columns stack and the base column leads	Boyd reads who won from his phone before the scouting report	src/ui/app.js	open
+ 2026-10-16T16:40:00Z	store	Same event type plus key is a no-op	A revival that fires twice must not double-launch	src/store/eventlog.ts	open
+ 2026-10-16T16:40:00Z	policy	The War Room appends inbox rows and never writes pick events	A11; dd intake --from-inbox is the only pick writer	src/server/http.ts	open
+ 2026-10-16T16:40:00Z	budget	Hard caps live in code: N 5, one relaunch, two fix loops, two judge passes	A10; config cannot raise them	src/core/budget.ts	open
+diff --git a/src/briefs/render.ts b/src/briefs/render.ts
+index e77ff7c..29bbe20 100644
+--- a/src/briefs/render.ts
++++ b/src/briefs/render.ts
+@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
+ import { fileURLToPath } from "node:url";
+ import { branchFor } from "../core/ids.ts";
+ import { labelMapForPass } from "../core/score.ts";
+-import type { Candidate, Pick } from "../core/types.ts";
++import { LABELS, type Candidate, type Pick } from "../core/types.ts";
+ 
+ const DIR = dirname(fileURLToPath(import.meta.url));
+ 
+@@ -109,9 +109,14 @@ export function candidateBrief(pick: Pick, cand: Candidate, relaunch: boolean):
+ export function judgeBrief(pick: Pick, pass: number): string {
+   const finished = pick.candidates.filter((cand) => cand.status === "finished").map((cand) => cand.id);
+   const map = labelMapForPass(pick.id, finished, pass);
+-  const labels = Object.entries(map.labels)
+-    .filter((entry) => entry[1])
+-    .map(([label]) => `- Label ${label}`)
++  const labels = map.order
++    .map((cand, index) => {
++      const label = LABELS[index];
++      if (!label) return "";
++      const sha = pick.candidates.find((item) => item.id === cand)?.report?.headSha ?? "";
++      return `- Label ${label}: ${sha}`;
++    })
++    .filter(Boolean)
+     .join("\n");
+   return fill("judge", {
+     goal: `Score pick ${pick.id} in the Film Room. Pass ${pass}${pass === 2 ? " reverses the previous order." : "."}`,
+diff --git a/src/cli/dd.ts b/src/cli/dd.ts
+index 6c7d39b..b2ad929 100644
+--- a/src/cli/dd.ts
++++ b/src/cli/dd.ts
+@@ -8,6 +8,7 @@ import {
+   assertCandidateCount,
+   branchFor,
+   eventKey,
++  filmRoom,
+   isCandId,
+   isEventType,
+   isPickId,
+@@ -21,6 +22,7 @@ import {
+   parseTargetRepo,
+   parseVerdict,
+   reduce,
++  validateJudgementContext,
+   type Config,
+   type DraftEvent,
+   type EventType,
+@@ -29,7 +31,7 @@ import {
+ import { allocatePickId, commitPick, loadPicks, readEvents } from "../store/eventlog.ts";
+ import { inboxCursor, readInbox } from "../store/inbox.ts";
+ import { startServer } from "../server/http.ts";
+-import { drive, HAPPY, POLICY, WALK, type DriverIo } from "../../test/fixtures/fake-driver.ts";
++import { CLOSE, drive, HAPPY, POLICY, WALK, type DriverIo } from "../../test/fixtures/fake-driver.ts";
+ 
+ class Exit extends Error {
+   code: number;
+@@ -182,6 +184,8 @@ function normalize(
+     const text = typeof raw.fileText === "string" ? raw.fileText : JSON.stringify(raw.judgement ?? raw);
+     const parsed = parseJudgement(text);
+     if (!parsed.ok) return parsed;
++    const problem = validateJudgementContext(parsed.value, pick.labels, pick.report?.rubric ?? []);
++    if (problem) return { error: problem };
+     return {
+       payload: {
+         pass: pick.judgeLaunches,
+@@ -364,7 +368,7 @@ function humanPick(pick: Pick): string {
+ async function show(paths: Paths, pickId: string | undefined): Promise<number> {
+   if (!pickId) throw new Exit("show needs a pick id");
+   const { pick, events } = await loadOne(paths, pickId);
+-  emit(paths, { ...pick, eventCount: events.length }, humanPick(pick));
++  emit(paths, { ...pick, filmRoom: filmRoom(pick), eventCount: events.length }, humanPick(pick));
+   return 0;
+ }
+ 
+@@ -519,7 +523,7 @@ async function selftest(paths: Paths, flags: Flags): Promise<number> {
+   });
+   const results = [];
+   try {
+-    for (const scenario of [HAPPY, POLICY, WALK]) {
++    for (const scenario of [HAPPY, POLICY, WALK, CLOSE]) {
+       const result = await drive(scenario, io());
+       const problems: string[] = [];
+       if (result.status !== scenario.expect) problems.push(`status ${result.status} wanted ${scenario.expect}`);
+@@ -533,6 +537,17 @@ async function selftest(paths: Paths, flags: Flags): Promise<number> {
+       if (scenario.name === "walkover") {
+         if (result.events.includes("judge_launched") || result.events.includes("graft_launched")) problems.push("walkover ran the film room or the trade");
+       }
++      if (scenario.name === "close") {
++        const loaded = await loadOne(local, result.pickId);
++        const room = filmRoom(loaded.pick);
++        const launches = result.events.filter((event) => event === "judge_launched").length;
++        if (launches !== 2) problems.push(`judge launches ${launches}`);
++        if (room?.swap !== "flipped") problems.push(`swap ${room?.swap ?? "none"}`);
++        if (!room?.tieRule || room.base !== room.tieRule.winner) problems.push(`base ${room?.base ?? "none"}`);
++        const failer = room?.passes.at(-1)?.lines.find((line) => line.gatePass === false);
++        if (!failer || failer.rank !== null) problems.push(`gate-failer rank ${String(failer?.rank)}`);
++        if (room?.base && failer && room.base === failer.cand) problems.push("gate-failer is the base");
++      }
+       results.push({ ...result, name: scenario.name, problems });
+     }
+     const ok = results.every((result) => result.problems.length === 0);
+diff --git a/src/core/filmroom.ts b/src/core/filmroom.ts
+new file mode 100644
+index 0000000..2efe3f0
+--- /dev/null
++++ b/src/core/filmroom.ts
+@@ -0,0 +1,338 @@
++import { passesHardGates, weightedScore, withinTenPercent } from "./score.ts";
++import {
++  LABELS,
++  type CandId,
++  type Candidate,
++  type CandidateLine,
++  type Criterion,
++  type CriterionCell,
++  type DiffStat,
++  type FilmRoom,
++  type JudgePass,
++  type Judgement,
++  type Label,
++  type PassView,
++  type Pick,
++  type Scorecard,
++  type SwapState,
++  type TieKey,
++  type Trade,
++} from "./types.ts";
++
++export interface IncomingPass {
++  pass: number;
++  reversed: boolean;
++  order: string[];
++  judgeModel?: string;
++  cards: Scorecard[];
++  base: string;
++  runnerUps: string[];
++  trades: { from: string; what: string; pointers: string[]; why: string }[];
++  secondRead?: "agree" | "disagree";
++  note?: string;
++  labels?: Partial<Record<Label, CandId>>;
++}
++
++interface DraftLine {
++  cand: CandId;
++  label: Label;
++  angle: string;
++  gates: Scorecard["gates"];
++  gatePass: boolean;
++  cross: { passed: number; total: number; rate: number | null };
++  contender: boolean;
++  cells: CriterionCell[];
++  weighted: number;
++  diff?: DiffStat;
++  rank: number | null;
++  risks: number;
++}
++
++interface TieCall {
++  winner: CandId;
++  loser: CandId;
++  deciding: TieKey;
++  detail: string;
++}
++
++function riskCount(candidates: readonly Candidate[], cand: CandId): number {
++  return candidates.find((item) => item.id === cand)?.report?.risks.length ?? 0;
++}
++
++function diffLines(diff: DiffStat | undefined): number | null {
++  if (!diff) return null;
++  return diff.added + diff.removed;
++}
++
++function tieCall(left: DraftLine, right: DraftLine): TieCall {
++  const leftLines = diffLines(left.diff);
++  const rightLines = diffLines(right.diff);
++  if (leftLines !== rightLines) {
++    const leftWins = leftLines !== null && (rightLines === null || leftLines < rightLines);
++    const winner = leftWins ? left : right;
++    const loser = leftWins ? right : left;
++    return {
++      winner: winner.cand,
++      loser: loser.cand,
++      deciding: "diff_lines",
++      detail: ` (${diffLines(winner.diff) ?? "missing"} vs ${diffLines(loser.diff) ?? "missing"})`,
++    };
++  }
++  const leftFiles = left.diff ? left.diff.files : null;
++  const rightFiles = right.diff ? right.diff.files : null;
++  if (leftFiles !== rightFiles) {
++    const leftWins = leftFiles !== null && (rightFiles === null || leftFiles < rightFiles);
++    const winner = leftWins ? left : right;
++    const loser = leftWins ? right : left;
++    const winnerFiles = winner.diff ? String(winner.diff.files) : "missing";
++    const loserFiles = loser.diff ? String(loser.diff.files) : "missing";
++    return { winner: winner.cand, loser: loser.cand, deciding: "files", detail: ` (${winnerFiles} vs ${loserFiles})` };
++  }
++  if (left.risks !== right.risks) {
++    const leftWins = left.risks < right.risks;
++    const winner = leftWins ? left : right;
++    const loser = leftWins ? right : left;
++    return { winner: winner.cand, loser: loser.cand, deciding: "risks", detail: ` (${winner.risks} vs ${loser.risks})` };
++  }
++  const leftWins = left.cand < right.cand;
++  const winner = leftWins ? left : right;
++  const loser = leftWins ? right : left;
++  return { winner: winner.cand, loser: loser.cand, deciding: "cand_id", detail: "" };
++}
++
++function rankPass(lines: DraftLine[]): void {
++  const passers = lines.filter((line) => line.gatePass);
++  const rates = passers.map((line) => line.cross.rate).filter((rate): rate is number => rate !== null);
++  const best = rates.length > 0 ? Math.max(...rates) : null;
++  for (const line of lines) {
++    if (!line.gatePass) {
++      line.contender = false;
++      line.rank = null;
++      continue;
++    }
++    line.contender = line.cross.rate === null || best === null || line.cross.rate + 1e-9 >= best - 0.1;
++  }
++  const ranked = [...passers].sort((a, b) => {
++    if (a.contender !== b.contender) return a.contender ? -1 : 1;
++    if (Math.abs(a.weighted - b.weighted) >= 1e-9) return b.weighted - a.weighted;
++    return tieCall(a, b).winner === a.cand ? -1 : 1;
++  });
++  ranked.forEach((line, index) => {
++    line.rank = index + 1;
++  });
++}
++
++function buildLines(pass: JudgePass, candidates: readonly Candidate[], rubric: readonly Criterion[]): DraftLine[] {
++  const lines: DraftLine[] = [];
++  const seen = new Set<CandId>();
++  for (const card of pass.cards) {
++    const cand = pass.labels[card.label];
++    if (!cand || seen.has(cand)) continue;
++    seen.add(cand);
++    const candidate = candidates.find((item) => item.id === cand);
++    const total = card.crossTests.total;
++    const cells = rubric.map((criterion) => {
++      const score = card.scores.find((item) => item.criterionId === criterion.id);
++      return {
++        criterionId: criterion.id,
++        name: criterion.name,
++        weight: criterion.weight,
++        score: score ? score.score : null,
++        evidence: score?.evidence ?? "",
++      };
++    });
++    const line: DraftLine = {
++      cand,
++      label: card.label,
++      angle: candidate?.angle ?? "",
++      gates: card.gates,
++      gatePass: passesHardGates(card),
++      cross: { passed: card.crossTests.passed, total, rate: total === 0 ? null : card.crossTests.passed / total },
++      contender: false,
++      cells,
++      weighted: weightedScore(card, rubric),
++      rank: null,
++      risks: riskCount(candidates, cand),
++    };
++    if (card.diff) line.diff = card.diff;
++    lines.push(line);
++  }
++  rankPass(lines);
++  lines.sort((a, b) => (a.cand < b.cand ? -1 : 1));
++  return lines;
++}
++
++function toView(pass: JudgePass, lines: readonly DraftLine[]): PassView {
++  const winner = lines.find((line) => line.rank === 1)?.cand ?? null;
++  return {
++    pass: pass.pass,
++    reversed: pass.reversed,
++    lines: lines.map((line) => {
++      const view: CandidateLine = {
++        cand: line.cand,
++        label: line.label,
++        angle: line.angle,
++        gates: line.gates,
++        gatePass: line.gatePass,
++        cross: line.cross,
++        contender: line.contender,
++        cells: line.cells,
++        weighted: line.weighted,
++        rank: line.rank,
++      };
++      if (line.diff) view.diff = line.diff;
++      return view;
++    }),
++    winner,
++    judgeBase: pass.judgeBase ?? null,
++  };
++}
++
++function lineFor(drafts: readonly DraftLine[][], cand: CandId): DraftLine | undefined {
++  for (let index = drafts.length - 1; index >= 0; index -= 1) {
++    const found = drafts[index]?.find((line) => line.cand === cand);
++    if (found) return found;
++  }
++  return undefined;
++}
++
++function cellScore(view: PassView, cand: CandId, criterionId: string): number {
++  const line = view.lines.find((item) => item.cand === cand);
++  const cell = line?.cells.find((item) => item.criterionId === criterionId);
++  return cell?.score ?? 0;
++}
++
++function reasonFor(views: readonly PassView[], tie: TieCall | null): string {
++  const first = views[0];
++  if (!first?.winner) return "No candidate passed the hard gates.";
++  if (views.length === 1) return `${first.winner} won the only pass.`;
++  const second = views[1];
++  if (!second?.winner) return `${first.winner} won pass 1.`;
++  if (first.winner === second.winner) return `${first.winner} won both passes.`;
++  if (tie) {
++    return `Passes split (${first.winner} won pass 1, ${second.winner} won pass 2). Tie rule: ${tie.winner} over ${tie.loser} on ${tie.deciding}${tie.detail}.`;
++  }
++  return `${first.winner} won pass 1 and ${second.winner} won pass 2.`;
++}
++
++function project(
++  passes: readonly JudgePass[],
++  candidates: readonly Candidate[],
++  rubric: readonly Criterion[],
++  secondRead: "agree" | "disagree" | null,
++  note: string,
++): FilmRoom {
++  const ordered = [...passes].sort((a, b) => a.pass - b.pass);
++  const drafts = ordered.map((pass) => buildLines(pass, candidates, rubric));
++  const views = ordered.map((pass, index) => toView(pass, drafts[index] ?? []));
++  let base: CandId | null = views[0]?.winner ?? null;
++  let swap: SwapState = "single";
++  let tie: TieCall | null = null;
++  if (views.length >= 2) {
++    const left = views[0]?.winner ?? null;
++    const right = views[1]?.winner ?? null;
++    if (left && right && left === right) {
++      base = left;
++      swap = "consistent";
++    } else if (left && right) {
++      const leftLine = lineFor(drafts, left);
++      const rightLine = lineFor(drafts, right);
++      if (leftLine && rightLine) tie = tieCall(leftLine, rightLine);
++      base = tie?.winner ?? left;
++      swap = "flipped";
++    } else {
++      base = left ?? right;
++      swap = "flipped";
++    }
++  }
++  const finalLines = drafts[drafts.length - 1] ?? [];
++  const runnerUps = [...finalLines]
++    .filter((line) => line.rank !== null && line.cand !== base)
++    .sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))
++    .map((line) => line.cand);
++  const pass1 = [...(drafts[0] ?? [])].filter((line) => line.rank !== null).sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0));
++  const closeCall = pass1.length >= 2 && withinTenPercent(pass1[0]!.weighted, pass1[1]!.weighted);
++  const unstable: string[] = [];
++  if (views.length >= 2) {
++    const shared = views[0]!.lines.filter((line) => views[1]!.lines.some((other) => other.cand === line.cand));
++    for (const criterion of rubric) {
++      const moved = shared.some((line) => Math.abs(cellScore(views[0]!, line.cand, criterion.id) - cellScore(views[1]!, line.cand, criterion.id)) >= 2);
++      if (moved) unstable.push(criterion.id);
++    }
++  }
++  const judgeDisagrees = views.some((view) => view.judgeBase !== null && view.winner !== null && view.judgeBase !== view.winner);
++  const tieRule = swap === "flipped" && tie && views[0]?.winner && views[1]?.winner
++    ? { between: [views[0].winner, views[1].winner] as [CandId, CandId], winner: tie.winner, deciding: tie.deciding }
++    : null;
++  return {
++    passes: views,
++    base,
++    runnerUps,
++    closeCall,
++    swap,
++    tieRule,
++    unstable,
++    judgeDisagrees,
++    secondRead,
++    note,
++    reason: reasonFor(views, tie),
++  };
++}
++
++function labelCand(token: string, labels: Partial<Record<Label, CandId>>): CandId | null {
++  if (!(LABELS as readonly string[]).includes(token)) return null;
++  return labels[token as Label] ?? null;
++}
++
++export function assembleJudgement(
++  rawPasses: readonly IncomingPass[],
++  candidates: readonly Candidate[],
++  rubric: readonly Criterion[],
++): Judgement | null {
++  if (rawPasses.length === 0) return null;
++  const passes: JudgePass[] = rawPasses.map((pass) => {
++    const labels = pass.labels ?? {};
++    const judgeBase = labelCand(pass.base, labels);
++    const built: JudgePass = {
++      pass: pass.pass,
++      reversed: pass.reversed,
++      order: pass.order,
++      cards: pass.cards,
++      labels,
++    };
++    if (pass.judgeModel) built.judgeModel = pass.judgeModel;
++    if (judgeBase) built.judgeBase = judgeBase;
++    return built;
++  });
++  const latest = rawPasses[rawPasses.length - 1]!;
++  const secondRead = latest.secondRead === "disagree" ? "disagree" : "agree";
++  const note = latest.note ?? "";
++  const room = project(passes, candidates, rubric, secondRead, note);
++  if (!room.base) return null;
++  const labels = latest.labels ?? {};
++  const trades: Trade[] = [];
++  const counts = new Map<CandId, number>();
++  const allowed = new Set(room.runnerUps);
++  for (const trade of latest.trades) {
++    const from = labelCand(trade.from, labels);
++    if (!from || from === room.base || !allowed.has(from)) continue;
++    const used = counts.get(from) ?? 0;
++    if (used >= 2) continue;
++    counts.set(from, used + 1);
++    trades.push({ from, what: trade.what, pointers: trade.pointers, why: trade.why });
++  }
++  return {
++    passes,
++    base: room.base,
++    runnerUps: room.runnerUps,
++    trades,
++    swapConsistent: room.swap === "consistent" ? true : room.swap === "flipped" ? false : null,
++    secondRead,
++    note,
++  };
++}
++
++export function filmRoom(pick: Pick): FilmRoom | null {
++  if (!pick.judgement || !pick.report) return null;
++  return project(pick.judgement.passes, pick.candidates, pick.report.rubric, pick.judgement.secondRead, pick.judgement.note);
++}
+diff --git a/src/core/index.ts b/src/core/index.ts
+index 8277fa6..3e2373b 100644
+--- a/src/core/index.ts
++++ b/src/core/index.ts
+@@ -7,23 +7,31 @@ export {
+ export type {
+   CandId,
+   Candidate,
++  CandidateLine,
+   CandidateReport,
+   Config,
+   Criterion,
++  CriterionCell,
++  DiffStat,
+   Ears,
++  FilmRoom,
+   Gate,
+   GraftState,
+   Judgement,
++  JudgePass,
+   Label,
+   Lesson,
+   NextAction,
++  PassView,
+   Physical,
+   Pick,
+   PickId,
+   PickStatus,
+   Scorecard,
+   ScoutingReport,
++  SwapState,
+   TargetRepo,
++  TieKey,
+   Trade,
+   Verdict,
+ } from "./types.ts";
+@@ -52,15 +60,9 @@ export {
+ } from "./budget.ts";
+ export type { Limits } from "./budget.ts";
+ 
+-export {
+-  assembleJudgement,
+-  labelMapForPass,
+-  passesHardGates,
+-  tieBreak,
+-  topTwoWithinTen,
+-  weightedScore,
+-  withinTenPercent,
+-} from "./score.ts";
++export { labelMapForPass, passesHardGates, weightedScore, withinTenPercent } from "./score.ts";
++
++export { assembleJudgement, filmRoom } from "./filmroom.ts";
+ 
+ export {
+   GO_TIMEOUT_MS,
+@@ -91,5 +93,6 @@ export {
+   parseJudgement,
+   parseScoutingReport,
+   parseVerdict,
++  validateJudgementContext,
+ } from "../report/parse.ts";
+ export type { ParsedJudgement } from "../report/parse.ts";
+diff --git a/src/core/next.ts b/src/core/next.ts
+index 9d279c6..dad104c 100644
+--- a/src/core/next.ts
++++ b/src/core/next.ts
+@@ -1,7 +1,8 @@
+ import { budgetBlock, DEFAULT_LIMITS, effectiveCap, type Limits } from "./budget.ts";
+ import { branchFor } from "./ids.ts";
+ import { screenIdea } from "./policy.ts";
+-import { passesHardGates, topTwoWithinTen } from "./score.ts";
++import { filmRoom } from "./filmroom.ts";
++import { passesHardGates } from "./score.ts";
+ import {
+   candidateBrief,
+   fixBrief,
+@@ -16,7 +17,6 @@ import {
+   type Config,
+   type NextAction,
+   type Pick,
+-  type Scorecard,
+ } from "./types.ts";
+ 
+ export interface NextContext {
+@@ -29,15 +29,6 @@ function none(pick: Pick, reason: string): NextAction {
+   return { kind: "none", pickId: pick.id, reason };
+ }
+ 
+-function cardMap(pick: Pick): Map<CandId, Scorecard> {
+-  const map = new Map<CandId, Scorecard>();
+-  for (const card of pick.latestScorecards) {
+-    const cand = pick.labels[card.label];
+-    if (cand) map.set(cand, card);
+-  }
+-  return map;
+-}
+-
+ function announce(pick: Pick): NextAction {
+   const pr = pick.physical?.prNumber ?? pick.graft?.prNumber;
+   const trades = pick.judgement?.trades ?? [];
+@@ -113,11 +104,12 @@ function launchJudge(pick: Pick): NextAction {
+ 
+ function launchGraft(pick: Pick): NextAction {
+   const base = pick.judgement?.base;
++  const baseCand = base ? pick.candidates.find((cand) => cand.id === base) : undefined;
+   return {
+     kind: "launch_graft",
+     pickId: pick.id,
+     repo: pick.target,
+-    startingRef: base ? branchFor(pick.id, base) : "",
++    startingRef: baseCand?.report?.branch || (base ? branchFor(pick.id, base) : ""),
+     title: `Draft Day ${pick.id} trade`,
+     brief: graftBrief(pick),
+   };
+@@ -142,11 +134,12 @@ function judging(pick: Pick, config: Config, limits: Limits): NextAction {
+     return none(pick, "reframe");
+   }
+   if (passes === 0) return launchJudge(pick);
+-  if (passes < limits.maxJudgePasses && topTwoWithinTen(cardMap(pick), pick.report?.rubric ?? [])) {
++  const close = filmRoom(pick)?.closeCall === true;
++  if (passes < limits.maxJudgePasses && close) {
+     if (budgetBlock("judge", pick, config, limits)) return none(pick, "budget");
+     return launchJudge(pick);
+   }
+-  if (passes < 2 && topTwoWithinTen(cardMap(pick), pick.report?.rubric ?? []) && pick.judgeLaunches >= limits.maxJudgePasses) {
++  if (passes < 2 && close && pick.judgeLaunches >= limits.maxJudgePasses) {
+     return none(pick, "budget");
+   }
+   return launchGraft(pick);
+diff --git a/src/core/reducer.ts b/src/core/reducer.ts
+index 163b799..3e3963d 100644
+--- a/src/core/reducer.ts
++++ b/src/core/reducer.ts
+@@ -1,6 +1,6 @@
+ import type { DraftEvent } from "./events.ts";
+ import { asPickId, isCandId } from "./ids.ts";
+-import { assembleJudgement } from "./score.ts";
++import { assembleJudgement } from "./filmroom.ts";
+ import { brandStoredTarget } from "./target.ts";
+ import { GO_TIMEOUT_MS, stampPending } from "./transitions.ts";
+ import {
+@@ -62,7 +62,7 @@ export function reduce(events: readonly DraftEvent[], now = Date.now()): Pick |
+   const dropped = new Set<CandId>();
+   const finished = new Map<CandId, CandidateReport>();
+   const agents = new Map<CandId, { agentId?: string; branch?: string; model?: string }>();
+-  const judgeLaunches: { pass: number; labels: Partial<Record<Label, CandId>>; order: string[] }[] = [];
++  const judgeLaunches: { pass: number; labels: Partial<Record<Label, CandId>>; order: string[]; reversed: boolean }[] = [];
+   const rawPasses: Parameters<typeof assembleJudgement>[0][number][] = [];
+   let graftLaunched = false;
+   let graftRecorded = false;
+@@ -125,10 +125,12 @@ export function reduce(events: readonly DraftEvent[], now = Date.now()): Pick |
+             }
+           }
+         }
++        const pass = num(payload.pass, judgeLaunches.length + 1);
+         judgeLaunches.push({
+-          pass: num(payload.pass, judgeLaunches.length + 1),
++          pass,
+           labels,
+           order: Array.isArray(payload.order) ? payload.order.map(String) : [],
++          reversed: payload.reversed === true || pass >= 2,
+         });
+         break;
+       }
+@@ -136,6 +138,8 @@ export function reduce(events: readonly DraftEvent[], now = Date.now()): Pick |
+         const passNumber = num(payload.pass, rawPasses.length + 1);
+         const launch = judgeLaunches.find((item) => item.pass === passNumber) ?? judgeLaunches[rawPasses.length];
+         rawPasses.push({
++          pass: passNumber,
++          reversed: launch?.reversed ?? passNumber >= 2,
+           order: Array.isArray(payload.order) ? payload.order.map(String) : launch?.order ?? [],
+           judgeModel: text(payload.judgeModel) || undefined,
+           cards: (payload.cards as Scorecard[]) ?? [],
+@@ -144,7 +148,7 @@ export function reduce(events: readonly DraftEvent[], now = Date.now()): Pick |
+           trades: Array.isArray(payload.trades)
+             ? (payload.trades as { from: string; what: string; pointers: string[]; why: string }[])
+             : [],
+-          secondRead: payload.secondRead === "disagree" ? "disagree" : "agree",
++          secondRead: payload.secondRead === "disagree" ? "disagree" : payload.secondRead === "agree" ? "agree" : undefined,
+           note: text(payload.note),
+           labels: launch?.labels,
+         });
+diff --git a/src/core/score.ts b/src/core/score.ts
+index e74688d..aa928f3 100644
+--- a/src/core/score.ts
++++ b/src/core/score.ts
+@@ -1,14 +1,10 @@
+-import { isCandId } from "./ids.ts";
+ import {
+   LABELS,
+   type CandId,
+-  type Candidate,
+   type Criterion,
+-  type Judgement,
+   type Label,
+   type PickId,
+   type Scorecard,
+-  type Trade,
+ } from "./types.ts";
+ 
+ export function passesHardGates(card: Scorecard): boolean {
+@@ -16,13 +12,16 @@ export function passesHardGates(card: Scorecard): boolean {
+ }
+ 
+ export function weightedScore(card: Scorecard, rubric: readonly Criterion[]): number {
++  const byId = new Map<string, number>();
++  for (const score of card.scores) {
++    if (byId.has(score.criterionId)) continue;
++    byId.set(score.criterionId, score.score);
++  }
+   let sum = 0;
+   let weight = 0;
+-  for (const score of card.scores) {
+-    const criterion = rubric.find((item) => item.id === score.criterionId);
+-    const w = criterion?.weight ?? 1;
+-    sum += score.score * w;
+-    weight += w;
++  for (const criterion of rubric) {
++    weight += criterion.weight;
++    sum += (byId.get(criterion.id) ?? 0) * criterion.weight;
+   }
+   return weight === 0 ? 0 : sum / weight;
+ }
+@@ -73,133 +72,3 @@ export function labelMapForPass(
+   });
+   return { order, labels };
+ }
+-
+-export function tieBreak(a: CandId, b: CandId, candidates: readonly Candidate[]): CandId {
+-  const left = candidates.find((cand) => cand.id === a);
+-  const right = candidates.find((cand) => cand.id === b);
+-  const risks = (cand: Candidate | undefined) => cand?.report?.risks.length ?? 99;
+-  const commands = (cand: Candidate | undefined) => cand?.report?.commands.length ?? 99;
+-  if (risks(left) !== risks(right)) return risks(left) < risks(right) ? a : b;
+-  if (commands(left) !== commands(right)) return commands(left) < commands(right) ? a : b;
+-  return a < b ? a : b;
+-}
+-
+-interface RawPass {
+-  order: string[];
+-  judgeModel?: string;
+-  cards: Scorecard[];
+-  base: string;
+-  runnerUps: string[];
+-  trades: { from: string; what: string; pointers: string[]; why: string }[];
+-  secondRead?: "agree" | "disagree";
+-  note?: string;
+-  labels?: Partial<Record<Label, string>>;
+-}
+-
+-function resolveToken(token: string, labels: Partial<Record<string, string>>): CandId | null {
+-  if (isCandId(token)) return token;
+-  const mapped = labels[token];
+-  if (mapped && isCandId(mapped)) return mapped;
+-  return null;
+-}
+-
+-export function assembleJudgement(
+-  rawPasses: readonly RawPass[],
+-  candidates: readonly Candidate[],
+-  rubric: readonly Criterion[],
+-): Judgement | null {
+-  if (rawPasses.length === 0) return null;
+-  const passes = rawPasses.map((pass) => ({
+-    order: pass.order,
+-    judgeModel: pass.judgeModel,
+-    cards: pass.cards,
+-  }));
+-
+-  const resolved = rawPasses.map((pass) => {
+-    const labels = pass.labels ?? {};
+-    const base = resolveToken(pass.base, labels);
+-    const cardsByCand = new Map<CandId, Scorecard>();
+-    for (const card of pass.cards) {
+-      const cand = labels[card.label];
+-      if (cand && isCandId(cand)) cardsByCand.set(cand, card);
+-    }
+-    return { base, cardsByCand, pass };
+-  });
+-
+-  const latest = resolved[resolved.length - 1]!;
+-  const gatePassers = [...latest.cardsByCand.entries()]
+-    .filter(([, card]) => passesHardGates(card))
+-    .map(([cand]) => cand);
+-
+-  const ranked = [...gatePassers].sort((a, b) => {
+-    const cardA = latest.cardsByCand.get(a)!;
+-    const cardB = latest.cardsByCand.get(b)!;
+-    const score = weightedScore(cardB, rubric) - weightedScore(cardA, rubric);
+-    if (score !== 0) return score;
+-    return a < b ? -1 : 1;
+-  });
+-
+-  let base = latest.base && gatePassers.includes(latest.base) ? latest.base : ranked[0];
+-  let swapConsistent: boolean | null = null;
+-  if (resolved.length >= 2) {
+-    const firstBase = resolved[0]!.base;
+-    const secondBase = resolved[1]!.base;
+-    if (firstBase && secondBase && firstBase === secondBase && gatePassers.includes(firstBase)) {
+-      base = firstBase;
+-      swapConsistent = true;
+-    } else if (firstBase && secondBase) {
+-      const left = gatePassers.includes(firstBase) ? firstBase : ranked[0];
+-      const right = gatePassers.includes(secondBase) ? secondBase : ranked[0];
+-      if (left && right) base = left === right ? left : tieBreak(left, right, candidates);
+-      swapConsistent = false;
+-    } else {
+-      swapConsistent = false;
+-    }
+-  }
+-
+-  if (!base) return null;
+-  const runnerUps = ranked.filter((cand) => cand !== base);
+-  const trades: Trade[] = [];
+-  const counts = new Map<CandId, number>();
+-  for (const trade of latest.pass.trades) {
+-    const from = resolveToken(trade.from, latest.pass.labels ?? {});
+-    if (!from || from === base) continue;
+-    const used = counts.get(from) ?? 0;
+-    if (used >= 2) continue;
+-    counts.set(from, used + 1);
+-    trades.push({ from, what: trade.what, pointers: trade.pointers, why: trade.why });
+-  }
+-
+-  return {
+-    passes,
+-    base,
+-    runnerUps,
+-    trades,
+-    swapConsistent,
+-    secondRead: latest.pass.secondRead ?? "agree",
+-    note: latest.pass.note ?? "",
+-  };
+-}
+-
+-export function topTwoWithinTen(pickCards: Map<CandId, Scorecard>, rubric: readonly Criterion[]): boolean {
+-  const ranked = [...pickCards.entries()]
+-    .filter(([, card]) => passesHardGates(card))
+-    .map(([cand, card]) => ({ cand, score: weightedScore(card, rubric) }))
+-    .sort((a, b) => b.score - a.score || (a.cand < b.cand ? -1 : 1));
+-  if (ranked.length < 2) return false;
+-  return withinTenPercent(ranked[0]!.score, ranked[1]!.score);
+-}
+-
+-export function cardsForLatestPass(
+-  judgement: Judgement | undefined,
+-  labels: Partial<Record<Label, CandId>>,
+-): Map<CandId, Scorecard> {
+-  const map = new Map<CandId, Scorecard>();
+-  const pass = judgement?.passes[judgement.passes.length - 1];
+-  if (!pass) return map;
+-  for (const card of pass.cards) {
+-    const cand = labels[card.label];
+-    if (cand) map.set(cand, card);
+-  }
+-  return map;
+-}
+diff --git a/src/core/types.ts b/src/core/types.ts
+index 376ff6c..7663c36 100644
+--- a/src/core/types.ts
++++ b/src/core/types.ts
+@@ -70,11 +70,18 @@ export interface Candidate {
+ 
+ export type Gate = "pass" | "fail" | "n/a";
+ 
++export interface DiffStat {
++  files: number;
++  added: number;
++  removed: number;
++}
++
+ export interface Scorecard {
+   label: Label;
+   gates: { build: Gate; tests: Gate; journey: Gate };
+   crossTests: { passed: number; total: number };
+   scores: { criterionId: string; score: 0 | 1 | 2 | 3 | 4; evidence: string }[];
++  diff?: DiffStat;
+ }
+ 
+ export interface Trade {
+@@ -85,9 +92,13 @@ export interface Trade {
+ }
+ 
+ export interface JudgePass {
++  pass: number;
++  reversed: boolean;
+   order: string[];
+   judgeModel?: string;
+   cards: Scorecard[];
++  labels: Partial<Record<Label, CandId>>;
++  judgeBase?: CandId;
+ }
+ 
+ export interface Judgement {
+@@ -100,6 +111,53 @@ export interface Judgement {
+   note: string;
+ }
+ 
++export type SwapState = "single" | "consistent" | "flipped";
++export type TieKey = "diff_lines" | "files" | "risks" | "cand_id";
++
++export interface CriterionCell {
++  criterionId: string;
++  name: string;
++  weight: 1 | 2 | 3;
++  score: 0 | 1 | 2 | 3 | 4 | null;
++  evidence: string;
++}
++
++export interface CandidateLine {
++  cand: CandId;
++  label: Label;
++  angle: string;
++  gates: Scorecard["gates"];
++  gatePass: boolean;
++  cross: { passed: number; total: number; rate: number | null };
++  contender: boolean;
++  cells: CriterionCell[];
++  weighted: number;
++  diff?: DiffStat;
++  rank: number | null;
++}
++
++export interface PassView {
++  pass: number;
++  reversed: boolean;
++  lines: CandidateLine[];
++  winner: CandId | null;
++  judgeBase: CandId | null;
++}
++
++export interface FilmRoom {
++  passes: PassView[];
++  base: CandId | null;
++  runnerUps: CandId[];
++  closeCall: boolean;
++  swap: SwapState;
++  tieRule: { between: [CandId, CandId]; winner: CandId; deciding: TieKey } | null;
++  unstable: string[];
++  judgeDisagrees: boolean;
++  secondRead: "agree" | "disagree" | null;
++  note: string;
++  reason: string;
++}
++
+ export type Verdict = "VERIFIED" | "NOT_VERIFIED" | "INCONCLUSIVE";
+ 
+ export interface Physical {
+diff --git a/src/report/parse.ts b/src/report/parse.ts
+index 9b0de3d..068caa0 100644
+--- a/src/report/parse.ts
++++ b/src/report/parse.ts
+@@ -1,5 +1,5 @@
+ import { isCandId } from "../core/ids.ts";
+-import { LABELS, type Criterion, type Label, type Scorecard } from "../core/types.ts";
++import { LABELS, type CandId, type Criterion, type DiffStat, type Label, type Scorecard } from "../core/types.ts";
+ 
+ export type ParseResult<T> = { ok: true; value: T } | { ok: false; error: string };
+ 
+@@ -87,23 +87,40 @@ function parseCard(value: unknown): Scorecard | string {
+   }
+   if (!Array.isArray(value.scores)) return "scorecard scores are required";
+   const scores: Scorecard["scores"] = [];
++  const seenCriteria = new Set<string>();
+   for (const score of value.scores) {
+     if (!isRecord(score) || typeof score.criterionId !== "string" || typeof score.evidence !== "string") {
+       return "each score needs criterionId and evidence";
+     }
++    if (score.evidence.trim() === "") return "evidence is empty";
+     if (typeof score.score !== "number" || !Number.isInteger(score.score) || score.score < 0 || score.score > 4) {
+       return "scores must be integers 0 through 4";
+     }
++    if (seenCriteria.has(score.criterionId)) return `duplicate criterionId ${score.criterionId}`;
++    seenCriteria.add(score.criterionId);
+     scores.push({ criterionId: score.criterionId, score: score.score as 0 | 1 | 2 | 3 | 4, evidence: score.evidence });
+   }
++  let diff: DiffStat | undefined;
++  if (value.diff !== undefined) {
++    const raw = value.diff;
++    if (!isRecord(raw) || !nonNegInt(raw.files) || !nonNegInt(raw.added) || !nonNegInt(raw.removed)) {
++      return "diff must be {files, added, removed} as non-negative integers";
++    }
++    diff = { files: raw.files as number, added: raw.added as number, removed: raw.removed as number };
++  }
+   return {
+     label: value.label as Label,
+     gates: { build: gates.build as Scorecard["gates"]["build"], tests: gates.tests as Scorecard["gates"]["tests"], journey: gates.journey as Scorecard["gates"]["journey"] },
+     crossTests: { passed: cross.passed as number, total: cross.total as number },
+     scores,
++    ...(diff ? { diff } : {}),
+   };
+ }
+ 
++function nonNegInt(value: unknown): boolean {
++  return typeof value === "number" && Number.isInteger(value) && value >= 0;
++}
++
+ export interface ParsedJudgement {
+   order: string[];
+   judgeModel?: string;
+@@ -122,7 +139,8 @@ export function parseJudgement(text: string): ParseResult<ParsedJudgement> {
+   const value = extracted.value;
+   if (!isRecord(value)) return fail("dd-judgement must be an object");
+   if (!Array.isArray(value.passes) || value.passes.length < 1) return fail("dd-judgement.passes is required");
+-  const pass = value.passes[value.passes.length - 1];
++  if (value.passes.length > 1) return fail("more than one pass");
++  const pass = value.passes[0];
+   if (!isRecord(pass) || !Array.isArray(pass.cards) || !Array.isArray(pass.order)) return fail("judgement pass needs order and cards");
+   const cards: Scorecard[] = [];
+   for (const card of pass.cards) {
+@@ -134,17 +152,22 @@ export function parseJudgement(text: string): ParseResult<ParsedJudgement> {
+   if (!tradesIn || typeof value.base !== "string" || !Array.isArray(value.runnerUps)) {
+     return fail("dd-judgement needs base, runnerUps, and trades");
+   }
++  if (isCandId(value.base)) return fail(`candidate id ${value.base} in base`);
+   if (value.swapConsistent !== null && typeof value.swapConsistent !== "boolean") return fail("swapConsistent must be boolean or null");
+   const trades = [];
+   for (const trade of tradesIn) {
+     if (!isRecord(trade) || typeof trade.from !== "string" || typeof trade.what !== "string" || typeof trade.why !== "string") {
+       return fail("each trade needs from, what, and why");
+     }
++    if (isCandId(trade.from)) return fail(`candidate id ${trade.from} in trades.from`);
+     const pointers = strings(trade.pointers);
+     if (!pointers) return fail("trade pointers must be a string array");
+     trades.push({ from: trade.from, what: trade.what, pointers, why: trade.why });
+   }
+   const runnerUps = value.runnerUps.map(String);
++  for (const runner of runnerUps) {
++    if (isCandId(runner)) return fail(`candidate id ${runner} in runnerUps`);
++  }
+   return {
+     ok: true,
+     value: {
+@@ -161,6 +184,35 @@ export function parseJudgement(text: string): ParseResult<ParsedJudgement> {
+   };
+ }
+ 
++export function validateJudgementContext(
++  parsed: ParsedJudgement,
++  labels: Partial<Record<Label, CandId>>,
++  rubric: readonly Criterion[],
++): string | null {
++  const mapped = Object.keys(labels);
++  const seen = new Set<string>();
++  for (const card of parsed.cards) {
++    if (!mapped.includes(card.label)) return `card label ${card.label} is not in this pass's label map`;
++    if (seen.has(card.label)) return `duplicate card for label ${card.label}`;
++    seen.add(card.label);
++  }
++  for (const label of mapped) {
++    if (!seen.has(label)) return `missing card for label ${label}`;
++  }
++  const totals = new Set(parsed.cards.map((card) => card.crossTests.total));
++  if (totals.size > 1) return "crossTests.total is not equal across cards";
++  const rubricIds = rubric.map((criterion) => criterion.id);
++  for (const card of parsed.cards) {
++    for (const id of rubricIds) {
++      if (!card.scores.some((score) => score.criterionId === id)) return `missing criterionId ${id}`;
++    }
++    for (const score of card.scores) {
++      if (!rubricIds.includes(score.criterionId)) return `unknown criterionId ${score.criterionId}`;
++    }
++  }
++  return null;
++}
++
+ export function parseVerdict(text: string): ParseResult<{
+   prNumber: number;
+   headSha: string;
+diff --git a/src/server/http.ts b/src/server/http.ts
+index fb59d93..01460b3 100644
+--- a/src/server/http.ts
++++ b/src/server/http.ts
+@@ -9,6 +9,7 @@ import {
+   loadConfig,
+   loadTargets,
+   parseTargetRepo,
++  filmRoom,
+   reduce,
+   screenIdea,
+   stageLabel,
+@@ -100,6 +101,7 @@ function pickView(pick: Pick, events: DraftEvent[]) {
+     report: pick.report ?? null,
+     candidates: pick.candidates,
+     judgement: pick.judgement ?? null,
++    filmRoom: filmRoom(pick),
+     labels: pick.labels,
+     graft: pick.graft ?? null,
+     physical: pick.physical ?? null,
+diff --git a/src/ui/app.js b/src/ui/app.js
+index 66488bf..3ef34f8 100644
+--- a/src/ui/app.js
++++ b/src/ui/app.js
+@@ -112,7 +112,130 @@ function boardView(data) {
+ }
+ 
+ function section(title, children) {
+-  return el("section", { class: "panel", "aria-label": title }, [el("h2", {}, [title]), ...children]);
++  return el("section", { class: "panel", "aria-label": title }, [el("h2", {}, [title]), ...children.filter((child) => child != null)]);
++}
++
++let scorePick = "";
++let scorePass = null;
++
++function showingPass(room, pick) {
++  if (scorePick !== pick.id) return room.passes[room.passes.length - 1]?.pass ?? 1;
++  return scorePass ?? room.passes[room.passes.length - 1]?.pass ?? 1;
++}
++
++function gateText(gates) {
++  return `build ${gates.build}, tests ${gates.tests}, journey ${gates.journey}`;
++}
++
++function crossText(cross) {
++  if (cross.rate == null) return `${cross.passed}/${cross.total}`;
++  return `${cross.passed}/${cross.total} (${Math.round(cross.rate * 100)}%)`;
++}
++
++function diffText(diff) {
++  if (!diff) return "—";
++  const files = diff.files === 1 ? "1 file" : `${diff.files} files`;
++  return `+${diff.added} −${diff.removed}, ${files}`;
++}
++
++function cellText(cell) {
++  if (cell.score == null) return "—";
++  return cell.evidence ? `${cell.score} "${cell.evidence}"` : String(cell.score);
++}
++
++function judgeSentence(room) {
++  if (!room.judgeDisagrees && room.secondRead !== "disagree") return "";
++  let judgeCand = null;
++  for (const pass of room.passes) {
++    if (pass.judgeBase && pass.judgeBase !== pass.winner) judgeCand = pass.judgeBase;
++  }
++  if (!judgeCand) {
++    for (const pass of room.passes) {
++      if (pass.judgeBase) judgeCand = pass.judgeBase;
++    }
++  }
++  if (!judgeCand || !room.base) return "";
++  return `Judge picked ${judgeCand}; the board picked ${room.base}.`;
++}
++
++function unstableSentence(room) {
++  if (!room.unstable?.length) return "";
++  const names = room.unstable.map((id) => {
++    for (const pass of room.passes) {
++      for (const line of pass.lines) {
++        const cell = line.cells.find((item) => item.criterionId === id);
++        if (cell) return cell.name;
++      }
++    }
++    return id;
++  });
++  return `${names.join(", ")} moved by 2 or more between passes.`;
++}
++
++function scoreColumn(line, base) {
++  const isBase = line.cand === base;
++  const rows = [
++    ["Gates", gateText(line.gates)],
++    ["Cross-tests", crossText(line.cross)],
++    ...line.cells.map((cell) => [`${cell.name} ×${cell.weight}`, cellText(cell)]),
++    ["Weighted", line.weighted.toFixed(2)],
++    ["Rank", line.rank == null ? "— (gate failed)" : String(line.rank)],
++    ["Diff", diffText(line.diff)],
++  ];
++  const heading = [el("span", { class: "cand-label" }, [`${line.cand} · ${line.label}`])];
++  if (isBase) heading.push(el("span", { class: "base-mark" }, ["BASE"]));
++  return el("article", { class: "score-col", "data-base": isBase ? "true" : "false", "aria-label": `${line.cand} · ${line.label}` }, [
++    el("h3", {}, heading),
++    el("p", { class: "angle" }, [line.angle || "No angle recorded"]),
++    el("dl", {}, rows.map(([name, value]) => el("div", {}, [
++      el("dt", {}, [name]),
++      el("dd", {}, [value]),
++    ]))),
++  ]);
++}
++
++function passToggle(room, pick) {
++  if (room.passes.length < 2) return null;
++  const current = showingPass(room, pick);
++  return el("div", { class: "pass-toggle", role: "group", "aria-label": "Judge pass" }, room.passes.map((pass) => {
++    const button = el("button", { type: "button", "aria-pressed": pass.pass === current ? "true" : "false" }, [`Pass ${pass.pass}`]);
++    button.addEventListener("click", () => {
++      scorePick = pick.id;
++      scorePass = pass.pass;
++      void render();
++    });
++    return button;
++  }));
++}
++
++function scorecard(pick) {
++  const room = pick.filmRoom;
++  if (!room) {
++    const empty = section("Scorecard", [el("p", { class: "empty" }, ["Film Room has not scored this pick."])]);
++    empty.id = "scorecard";
++    return empty;
++  }
++  const current = showingPass(room, pick);
++  const view = room.passes.find((pass) => pass.pass === current) ?? room.passes[room.passes.length - 1];
++  const swapText = room.swap === "single" ? "Single pass" : `Swap: ${room.swap}`;
++  const judge = judgeSentence(room);
++  const moved = unstableSentence(room);
++  const node = section("Scorecard", [
++    el("div", { class: "score-tools" }, [
++      el("span", { class: "chip score-chip", "data-swap": room.swap }, [swapText]),
++      room.closeCall ? el("span", { class: "chip score-chip", "data-close": "true" }, ["Close call"]) : null,
++      room.base ? el("strong", { class: "base-banner" }, [`Base ${room.base}`]) : null,
++      passToggle(room, pick),
++    ].filter(Boolean)),
++    room.passes.length > 1 ? el("p", { class: "score-showing", role: "status" }, [`Showing pass ${view.pass}.`]) : null,
++    el("p", { class: "score-reason", id: "score-reason" }, [room.reason]),
++    judge ? el("p", { class: "score-judge" }, [judge]) : null,
++    (room.judgeDisagrees || room.secondRead === "disagree") && room.note ? el("p", { class: "score-note" }, [room.note]) : null,
++    moved ? el("p", { class: "score-unstable" }, [moved]) : null,
++    el("div", { class: "score-board", "data-showing-pass": String(view.pass) }, (view?.lines ?? []).map((line) => scoreColumn(line, room.base))),
++  ].filter((child) => child != null));
++  node.id = "scorecard";
++  return node;
+ }
+ 
+ function pickView(pick) {
+@@ -130,19 +253,6 @@ function pickView(pick) {
+       ]))
+     : [el("p", { class: "empty" }, ["No candidates yet."])];
+ 
+-  const scoreHead = ["Criterion"].concat((pick.judgement?.passes.at(-1)?.cards || []).map((card) => card.label));
+-  const rubric = report?.rubric || [];
+-  const cardsByLabel = new Map((pick.judgement?.passes.at(-1)?.cards || []).map((card) => [card.label, card]));
+-  const scoreRows = rubric.map((criterion) => {
+-    const cells = [el("td", {}, [criterion.name])];
+-    for (const label of scoreHead.slice(1)) {
+-      const card = cardsByLabel.get(label);
+-      const score = card?.scores.find((item) => item.criterionId === criterion.id);
+-      cells.push(el("td", {}, [score ? `${score.score} — ${score.evidence}` : "—"]));
+-    }
+-    return el("tr", {}, cells);
+-  });
+-
+   const trades = pick.judgement?.trades?.length
+     ? pick.judgement.trades.map((trade) => el("li", {}, [`${trade.from}: ${trade.what} (${trade.pointers.join(", ")}) — ${trade.why}`]))
+     : [el("li", { class: "empty" }, ["No trades."])];
+@@ -167,10 +277,6 @@ function pickView(pick) {
+     ? pick.events.map((event) => el("li", {}, [`${event.ts} ${event.summary}`]))
+     : [el("li", { class: "empty" }, ["No events."])];
+ 
+-  const swap = pick.judgement
+-    ? `Base ${pick.judgement.base}. swapConsistent ${String(pick.judgement.swapConsistent)}.`
+-    : "No scorecard yet.";
+-
+   return el("article", { "data-pick-id": pick.id }, [
+     el("p", { class: "back" }, [el("a", { href: "#/" }, ["Big Board"])]),
+     el("div", { class: "status-line" }, [
+@@ -180,20 +286,12 @@ function pickView(pick) {
+     ]),
+     el("p", {}, [pick.idea]),
+     pick.failReason ? el("p", { class: "meta" }, [`Reason: ${pick.failReason}`]) : el("span"),
++    scorecard(pick),
+     section("Scouting report", [
+       el("p", {}, [report?.restatement || "The report has not been written."]),
+       el("ul", {}, acceptance),
+     ]),
+     section("Candidates", [el("div", { class: "cards" }, cards)]),
+-    section("Scorecard", [
+-      el("p", {}, [swap]),
+-      scoreRows.length
+-        ? el("table", {}, [
+-            el("thead", {}, [el("tr", {}, scoreHead.map((name) => el("th", {}, [name])))]),
+-            el("tbody", {}, scoreRows),
+-          ])
+-        : el("p", { class: "empty" }, ["Film Room has not scored this pick."]),
+-    ]),
+     section("Trades", [el("ul", {}, trades)]),
+     section("Physical", physicalBits),
+     section("Decision log", [el("ol", { class: "events" }, log)]),
+diff --git a/src/ui/styles.css b/src/ui/styles.css
+index 2d08c51..4ae1c19 100644
+--- a/src/ui/styles.css
++++ b/src/ui/styles.css
+@@ -140,3 +140,97 @@ ol.events li { margin: 6px 0; }
+ .empty { color: var(--muted); }
+ 
+ .back { font-family: ui-sans-serif, system-ui, sans-serif; }
++
++.score-tools {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 8px;
++  align-items: center;
++  margin-bottom: 8px;
++}
++
++.score-chip {
++  text-transform: none;
++  letter-spacing: 0.01em;
++  font-size: 13px;
++}
++
++.base-banner {
++  font: 700 15px/1 ui-sans-serif, system-ui, sans-serif;
++}
++
++.pass-toggle { display: inline-flex; gap: 6px; }
++
++.pass-toggle button {
++  background: transparent;
++  color: var(--ink);
++  border: 1px solid var(--line);
++  padding: 8px 14px;
++}
++
++.pass-toggle button[aria-pressed="true"] {
++  background: var(--gold);
++  color: #1b1608;
++  border-color: var(--gold);
++}
++
++.score-reason { margin: 8px 0 12px; font-size: 18px; }
++.score-judge, .score-note, .score-unstable, .score-showing { margin: 4px 0 8px; }
++.score-note { color: var(--muted); }
++
++.score-board {
++  display: grid;
++  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
++  gap: 10px;
++}
++
++.score-col {
++  border: 1px solid var(--line);
++  border-radius: 12px;
++  padding: 12px;
++  background: #141b12;
++  min-width: 0;
++}
++
++.score-col[data-base="true"] {
++  border-color: var(--gold);
++  box-shadow: inset 0 0 0 1px var(--gold);
++}
++
++.score-col h3 {
++  margin: 0;
++  font-size: 20px;
++  display: flex;
++  gap: 8px;
++  flex-wrap: wrap;
++  align-items: center;
++}
++
++.base-mark {
++  font: 700 12px/1 ui-sans-serif, system-ui, sans-serif;
++  letter-spacing: 0.08em;
++  background: var(--gold);
++  color: #1b1608;
++  border-radius: 999px;
++  padding: 3px 8px;
++}
++
++.angle { margin: 4px 0 8px; color: var(--muted); }
++
++.score-col dl { margin: 0; }
++.score-col dl div { margin: 0 0 8px; }
++.score-col dt {
++  font: 600 12px/1.3 ui-sans-serif, system-ui, sans-serif;
++  color: var(--muted);
++}
++.score-col dd { margin: 0; overflow-wrap: anywhere; }
++
++@media (max-width: 480px) {
++  .score-board { grid-template-columns: 1fr; }
++  .score-col[data-base="true"] { order: -1; }
++  .score-reason { font-size: 17px; }
++  .score-col { padding: 12px; }
++  .score-col h3 { font-size: 22px; }
++  .pass-toggle { width: 100%; }
++  .pass-toggle button { flex: 1; }
++}
+diff --git a/test/commands.test.ts b/test/commands.test.ts
+index d544a76..0073cc8 100644
+--- a/test/commands.test.ts
++++ b/test/commands.test.ts
+@@ -28,6 +28,7 @@ test("A13 selftest exits 0 only when every pick lands", async () => {
+   assert.match(result.stdout, /happy p-\d{8}-\d{2} drafted/);
+   assert.match(result.stdout, /policy p-\d{8}-\d{2} failed/);
+   assert.match(result.stdout, /walkover p-\d{8}-\d{2} drafted/);
++  assert.match(result.stdout, /close p-\d{8}-\d{2} drafted/);
+ });
+ 
+ test("A14 doctor prints one line per check", async () => {
+diff --git a/test/film-room.test.ts b/test/film-room.test.ts
+new file mode 100644
+index 0000000..aa7b3fa
+--- /dev/null
++++ b/test/film-room.test.ts
+@@ -0,0 +1,650 @@
++import assert from "node:assert/strict";
++import { execFile } from "node:child_process";
++import { mkdtemp, readFile, writeFile } from "node:fs/promises";
++import { tmpdir } from "node:os";
++import { join } from "node:path";
++import { test } from "node:test";
++import { promisify } from "node:util";
++import {
++  candidateBrief,
++  eventKey,
++  filmRoom,
++  followUpEvents,
++  judgeBrief,
++  labelMapForPass,
++  nextAction,
++  reduce,
++  weightedScore,
++  type CandId,
++  type DiffStat,
++  type DraftEvent,
++  type EventType,
++  type Pick,
++  type Scorecard,
++} from "../src/core/index.ts";
++
++const exec = promisify(execFile);
++const root = process.cwd();
++const NOW = Date.parse("2026-10-17T15:00:00.000Z");
++const TS = "2026-10-17T15:00:00.000Z";
++
++const rubric = [
++  { id: "clarity", name: "Clarity", weight: 3 as const, howToGrade: "HIDDEN_RUBRIC_TOKEN read the board" },
++  { id: "safety", name: "Safety", weight: 2 as const, howToGrade: "HIDDEN_RUBRIC_TOKEN prove the allowlist" },
++  { id: "tests", name: "Tests", weight: 1 as const, howToGrade: "HIDDEN_RUBRIC_TOKEN run the tests" },
++];
++
++const report = {
++  restatement: "You want the scorecard to name the base.",
++  acceptance: [{ id: "show", when: "the pick is open", shall: "show the scorecard" }],
++  rubric,
++  designSketch: "One scorecard, one reason sentence.",
++  verifyPlan: ["Open the scorecard."],
++  safetyFact: "A gate failure cannot become the base.",
++  angles: ["simplest thing that passes", "extensibility first", "tests first, then code"],
++  forbidden: ["Do not merge."],
++};
++
++function ev(type: EventType, payload: Record<string, unknown>): DraftEvent {
++  return { seq: 0, ts: TS, type, by: "test", key: eventKey(type, payload), payload };
++}
++
++function settle(events: DraftEvent[]): Pick {
++  const stamped = events.map((event, index) => ({ ...event, seq: index + 1 }));
++  const extra = followUpEvents(stamped, NOW, TS, "test");
++  const pick = reduce([...stamped, ...extra], NOW);
++  assert.ok(pick);
++  return pick;
++}
++
++function created(): DraftEvent {
++  return ev("pick_created", {
++    id: "p-20261017-09",
++    idea: "Show who the base is",
++    source: "chat",
++    target: "BoydVC/draft-day",
++    n: 3,
++    approval: "ask",
++  });
++}
++
++function scouted(): DraftEvent[] {
++  return [created(), ev("scouting_report_written", { report }), ev("scouting_approved", { via: "test" })];
++}
++
++function finishedReport(cand: string, sha: string, risks: string[] = []) {
++  return {
++    branch: `dd/p-20261017-09/${cand}`,
++    headSha: sha,
++    summary: cand,
++    commands: [{ cmd: "npm test", exit: 0 }],
++    tests: { added: 1, passing: true },
++    screenshots: [],
++    risks,
++  };
++}
++
++function card(
++  label: "A" | "B" | "C",
++  score: number | number[],
++  opts: { build?: "pass" | "fail" | "n/a"; tests?: "pass" | "fail" | "n/a"; journey?: "pass" | "fail" | "n/a"; passed?: number; total?: number; diff?: DiffStat; evidence?: string } = {},
++): Scorecard {
++  const scores = Array.isArray(score) ? score : rubric.map(() => score);
++  return {
++    label,
++    gates: { build: opts.build ?? "pass", tests: opts.tests ?? "pass", journey: opts.journey ?? "pass" },
++    crossTests: { passed: opts.passed ?? 8, total: opts.total ?? 8 },
++    scores: rubric.map((criterion, index) => ({
++      criterionId: criterion.id,
++      score: (scores[index] ?? 0) as 0 | 1 | 2 | 3 | 4,
++      evidence: opts.evidence ?? `${label} ${criterion.name} holds`,
++    })),
++    ...(opts.diff ? { diff: opts.diff } : {}),
++  };
++}
++
++function finish(cand: CandId, sha: string, risks: string[] = []): DraftEvent[] {
++  return [
++    ev("candidate_finished", { cand, attempt: 1, report: finishedReport(cand, sha, risks) }),
++  ];
++}
++
++interface PassInput {
++  pass: number;
++  labels: Partial<Record<"A" | "B" | "C", CandId>>;
++  cards: Scorecard[];
++  base?: string;
++  trades?: { from: string; what: string; pointers: string[]; why: string }[];
++  reversed?: boolean;
++}
++
++function withPasses(passes: PassInput[], risks: Partial<Record<CandId, string[]>> = {}, n = 2): Pick {
++  const cands: CandId[] = n === 3 ? ["c1", "c2", "c3"] : ["c1", "c2"];
++  const events = [
++    ...scouted(),
++    ...cands.flatMap((cand, index) => finish(cand, (index + 1).toString(16).repeat(40), risks[cand] ?? [])),
++    ...passes.flatMap((pass) => [
++      ev("judge_launched", {
++        pass: pass.pass,
++        order: Object.values(pass.labels),
++        labels: pass.labels,
++        reversed: pass.reversed ?? pass.pass >= 2,
++      }),
++      ev("judgement_recorded", {
++        pass: pass.pass,
++        order: pass.cards.map((item) => item.label),
++        cards: pass.cards,
++        base: pass.base ?? "A",
++        runnerUps: [],
++        trades: pass.trades ?? [],
++        swapConsistent: null,
++      }),
++    ]),
++  ];
++  return settle(events);
++}
++
++test("F1 weighted mean over the whole rubric", () => {
++  const weights = [
++    { id: "a", name: "A", weight: 3 as const, howToGrade: "a" },
++    { id: "b", name: "B", weight: 2 as const, howToGrade: "b" },
++    { id: "c", name: "C", weight: 1 as const, howToGrade: "c" },
++  ];
++  const full = card("A", [4, 2, 0]);
++  full.scores = [
++    { criterionId: "a", score: 4, evidence: "high" },
++    { criterionId: "b", score: 2, evidence: "mid" },
++    { criterionId: "c", score: 0, evidence: "none" },
++  ];
++  const omitted = {
++    ...full,
++    scores: [
++      { criterionId: "a", score: 4 as const, evidence: "high" },
++      { criterionId: "b", score: 2 as const, evidence: "mid" },
++    ],
++  };
++  const duplicated = {
++    ...full,
++    scores: [
++      { criterionId: "a", score: 4 as const, evidence: "high" },
++      { criterionId: "a", score: 0 as const, evidence: "ignored" },
++      { criterionId: "b", score: 2 as const, evidence: "mid" },
++      { criterionId: "c", score: 0 as const, evidence: "none" },
++      { criterionId: "nope", score: 4 as const, evidence: "unknown" },
++    ],
++  };
++  assert.equal(weightedScore(full, weights).toFixed(2), "2.67");
++  assert.equal(weightedScore(omitted, weights).toFixed(2), "2.67");
++  assert.equal(weightedScore(full, weights), weightedScore(omitted, weights));
++  assert.equal(weightedScore(duplicated, weights), weightedScore(full, weights));
++  assert.notEqual(weightedScore(omitted, weights).toFixed(2), "3.20");
++});
++
++async function dd(args: string[]) {
++  try {
++    const { stdout, stderr } = await exec(process.execPath, ["--experimental-strip-types", "src/cli/dd.ts", ...args], {
++      cwd: root,
++      env: { ...process.env, NODE_NO_WARNINGS: "1" },
++    });
++    return { code: 0, stdout, stderr };
++  } catch (error) {
++    const err = error as { code?: number; stdout?: string; stderr?: string };
++    return { code: err.code ?? 1, stdout: err.stdout ?? "", stderr: err.stderr ?? "" };
++  }
++}
++
++test("F2 bad judgements exit 2 and write nothing", async () => {
++  const data = await mkdtemp(join(tmpdir(), "dd-f2-"));
++  const scout = {
++    restatement: "You want a scorecard.",
++    acceptance: [{ id: "show", when: "the pick is open", shall: "show it" }],
++    rubric: [
++      { id: "clarity", name: "Clarity", weight: 3, howToGrade: "read" },
++      { id: "safety", name: "Safety", weight: 2, howToGrade: "prove" },
++      { id: "tests", name: "Tests", weight: 1, howToGrade: "run" },
++    ],
++    designSketch: "A scorecard.",
++    verifyPlan: ["Open it."],
++    safetyFact: "A gate failure cannot become the base.",
++    angles: ["simplest thing that passes", "extensibility first"],
++    forbidden: ["Do not merge."],
++  };
++  const created = await dd(["intake", "--idea", "Rank the scorecard", "--source", "chat", "--target", "BoydVC/draft-day", "--n", "2", "--approval", "ask", "--data", data, "--json"]);
++  assert.equal(created.code, 0, created.stderr);
++  const id = (JSON.parse(created.stdout) as { pickId: string }).pickId;
++  const reportPath = join(data, "report.json");
++  await writeFile(reportPath, JSON.stringify(scout));
++  assert.equal((await dd(["record", id, "scouting_report_written", "--file", reportPath, "--data", data])).code, 0);
++  assert.equal((await dd(["record", id, "scouting_approved", "--data", data])).code, 0);
++  for (const [cand, n] of [["c1", "11"], ["c2", "22"]] as const) {
++    assert.equal((await dd(["record", id, "candidate_launched", "--cand", cand, "--data", data])).code, 0);
++    const path = join(data, `${cand}.json`);
++    await writeFile(path, JSON.stringify({
++      branch: `dd/${id}/${cand}`,
++      headSha: n.repeat(20),
++      summary: cand,
++      commands: [{ cmd: "npm test", exit: 0 }],
++      tests: { added: 1, passing: true },
++      screenshots: [],
++      risks: [],
++    }));
++    assert.equal((await dd(["record", id, "candidate_finished", "--cand", cand, "--file", path, "--data", data])).code, 0);
++  }
++  assert.equal((await dd(["record", id, "judge_launched", "--data", data])).code, 0);
++  const shown = JSON.parse((await dd(["show", id, "--json", "--data", data])).stdout) as { labels: Record<string, string> };
++  const labels = Object.keys(shown.labels);
++  assert.equal(labels.length, 2);
++  const eventsPath = join(data, "picks", id, "events.jsonl");
++  const before = await readFile(eventsPath, "utf8");
++  const base = {
++    passes: [{
++      order: labels,
++      cards: labels.map((label) => ({
++        label,
++        gates: { build: "pass", tests: "pass", journey: "pass" },
++        crossTests: { passed: 4, total: 4 },
++        scores: scout.rubric.map((criterion) => ({ criterionId: criterion.id, score: 3, evidence: `${criterion.name} holds` })),
++      })),
++    }],
++    base: labels[0],
++    runnerUps: labels.slice(1),
++    trades: [] as { from: string; what: string; pointers: string[]; why: string }[],
++    swapConsistent: null,
++  };
++  const cases: { name: string; body: unknown; phrase: RegExp }[] = [
++    { name: "passes", phrase: /more than one pass/, body: { ...base, passes: [base.passes[0], base.passes[0]] } },
++    {
++      name: "label",
++      phrase: /not in this pass's label map/,
++      body: { ...base, passes: [{ ...base.passes[0], cards: base.passes[0]!.cards.map((item, index) => index === 0 ? { ...item, label: "C" } : item) }] },
++    },
++    {
++      name: "missing card",
++      phrase: /missing card for label/,
++      body: { ...base, passes: [{ ...base.passes[0], cards: base.passes[0]!.cards.slice(0, 1) }] },
++    },
++    {
++      name: "duplicate card",
++      phrase: /duplicate card for label/,
++      body: { ...base, passes: [{ ...base.passes[0], cards: [base.passes[0]!.cards[0], base.passes[0]!.cards[0], base.passes[0]!.cards[1]] }] },
++    },
++    {
++      name: "missing criterion",
++      phrase: /missing criterionId/,
++      body: {
++        ...base,
++        passes: [{
++          ...base.passes[0],
++          cards: base.passes[0]!.cards.map((item, index) => index === 0 ? { ...item, scores: item.scores.slice(1) } : item),
++        }],
++      },
++    },
++    {
++      name: "duplicate criterion",
++      phrase: /duplicate criterionId/,
++      body: {
++        ...base,
++        passes: [{
++          ...base.passes[0],
++          cards: base.passes[0]!.cards.map((item, index) => index === 0 ? { ...item, scores: [item.scores[0], ...item.scores] } : item),
++        }],
++      },
++    },
++    {
++      name: "unknown criterion",
++      phrase: /unknown criterionId nope/,
++      body: {
++        ...base,
++        passes: [{
++          ...base.passes[0],
++          cards: base.passes[0]!.cards.map((item, index) => index === 0
++            ? { ...item, scores: [...item.scores, { criterionId: "nope", score: 1, evidence: "extra" }] }
++            : item),
++        }],
++      },
++    },
++    {
++      name: "evidence",
++      phrase: /evidence is empty/,
++      body: {
++        ...base,
++        passes: [{
++          ...base.passes[0],
++          cards: base.passes[0]!.cards.map((item, index) => index === 0
++            ? { ...item, scores: item.scores.map((score, scoreIndex) => scoreIndex === 0 ? { ...score, evidence: "" } : score) }
++            : item),
++        }],
++      },
++    },
++    {
++      name: "cross total",
++      phrase: /crossTests\.total is not equal/,
++      body: {
++        ...base,
++        passes: [{
++          ...base.passes[0],
++          cards: base.passes[0]!.cards.map((item, index) => index === 0 ? { ...item, crossTests: { passed: 4, total: 9 } } : item),
++        }],
++      },
++    },
++    { name: "base", phrase: /candidate id c1 in base/, body: { ...base, base: "c1" } },
++    { name: "runnerUps", phrase: /candidate id c2 in runnerUps/, body: { ...base, runnerUps: ["c2"] } },
++    { name: "trade", phrase: /candidate id c1 in trades\.from/, body: { ...base, trades: [{ from: "c1", what: "a play", pointers: ["src/ui/app.js"], why: "clear" }] } },
++  ];
++  for (const item of cases) {
++    const path = join(data, `${item.name}.json`);
++    await writeFile(path, JSON.stringify(item.body));
++    const result = await dd(["record", id, "judgement_recorded", "--file", path, "--data", data]);
++    assert.equal(result.code, 2, `${item.name} ${result.stderr}`);
++    assert.match(result.stderr, item.phrase, item.name);
++    assert.equal(await readFile(eventsPath, "utf8"), before, item.name);
++  }
++});
++
++test("F3 cross-test band outranks rubric score", () => {
++  const pick = withPasses([{
++    pass: 1,
++    labels: { A: "c1", B: "c2", C: "c3" },
++    cards: [
++      card("A", 2, { passed: 12, total: 12 }),
++      card("B", 3, { passed: 11, total: 12 }),
++      card("C", 4, { passed: 8, total: 12 }),
++    ],
++  }], {}, 3);
++  const room = filmRoom(pick);
++  const line = (cand: string) => room?.passes[0]?.lines.find((item) => item.cand === cand);
++  assert.equal(line("c3")?.contender, false);
++  assert.equal(line("c2")?.contender, true);
++  assert.equal(line("c1")?.contender, true);
++  assert.equal(line("c2")?.rank, 1);
++  assert.equal(line("c1")?.rank, 2);
++  assert.equal(line("c3")?.rank, 3);
++  assert.equal(room?.base, "c2");
++  assert.ok((line("c3")?.rank ?? 0) > (line("c1")?.rank ?? 0));
++  assert.ok((line("c3")?.rank ?? 0) > (line("c2")?.rank ?? 0));
++});
++
++test("F4 gate failure is never base", async () => {
++  const data = await mkdtemp(join(tmpdir(), "dd-f4-"));
++  const scout = {
++    restatement: "You want a scorecard.",
++    acceptance: [{ id: "show", when: "the pick is open", shall: "show it" }],
++    rubric: [
++      { id: "clarity", name: "Clarity", weight: 3, howToGrade: "read" },
++      { id: "safety", name: "Safety", weight: 2, howToGrade: "prove" },
++      { id: "tests", name: "Tests", weight: 1, howToGrade: "run" },
++    ],
++    designSketch: "A scorecard.",
++    verifyPlan: ["Open it."],
++    safetyFact: "A gate failure cannot become the base.",
++    angles: ["simplest thing that passes", "extensibility first"],
++    forbidden: ["Do not merge."],
++  };
++  const created = await dd(["intake", "--idea", "Keep a gate failure off the base", "--source", "chat", "--target", "BoydVC/draft-day", "--n", "2", "--approval", "ask", "--data", data, "--json"]);
++  const id = (JSON.parse(created.stdout) as { pickId: string }).pickId;
++  const reportPath = join(data, "report.json");
++  await writeFile(reportPath, JSON.stringify(scout));
++  assert.equal((await dd(["record", id, "scouting_report_written", "--file", reportPath, "--data", data])).code, 0);
++  assert.equal((await dd(["record", id, "scouting_approved", "--data", data])).code, 0);
++  for (const cand of ["c1", "c2"] as const) {
++    assert.equal((await dd(["record", id, "candidate_launched", "--cand", cand, "--data", data])).code, 0);
++    const path = join(data, `${cand}.json`);
++    await writeFile(path, JSON.stringify({
++      branch: `dd/${id}/${cand}`,
++      headSha: cand === "c1" ? "a".repeat(40) : "b".repeat(40),
++      summary: cand,
++      commands: [{ cmd: "npm test", exit: 0 }],
++      tests: { added: 1, passing: true },
++      screenshots: [],
++      risks: [],
++    }));
++    assert.equal((await dd(["record", id, "candidate_finished", "--cand", cand, "--file", path, "--data", data])).code, 0);
++  }
++  assert.equal((await dd(["record", id, "judge_launched", "--data", data])).code, 0);
++  const shown = JSON.parse((await dd(["show", id, "--json", "--data", data])).stdout) as { labels: Record<string, CandId> };
++  const labelOf = (cand: CandId) => Object.entries(shown.labels).find((entry) => entry[1] === cand)?.[0];
++  const failer = labelOf("c1");
++  const passer = labelOf("c2");
++  assert.ok(failer && passer);
++  const body = {
++    passes: [{
++      order: [failer, passer],
++      cards: [
++        {
++          label: failer,
++          gates: { build: "pass", tests: "pass", journey: "fail" },
++          crossTests: { passed: 4, total: 4 },
++          diff: { files: 1, added: 10, removed: 1 },
++          scores: scout.rubric.map((criterion) => ({ criterionId: criterion.id, score: 4, evidence: "all fours and a failed journey" })),
++        },
++        {
++          label: passer,
++          gates: { build: "pass", tests: "pass", journey: "pass" },
++          crossTests: { passed: 3, total: 4 },
++          diff: { files: 4, added: 80, removed: 20 },
++          scores: scout.rubric.map((criterion) => ({ criterionId: criterion.id, score: 1, evidence: "low score that still passes" })),
++        },
++      ],
++    }],
++    base: failer,
++    runnerUps: [passer],
++    trades: [],
++    swapConsistent: null,
++  };
++  const path = join(data, "judgement.json");
++  await writeFile(path, JSON.stringify(body));
++  const recorded = await dd(["record", id, "judgement_recorded", "--file", path, "--data", data, "--json"]);
++  assert.equal(recorded.code, 0, recorded.stderr);
++  const after = JSON.parse((await dd(["show", id, "--json", "--data", data])).stdout) as Pick & { filmRoom: ReturnType<typeof filmRoom> };
++  const room = after.filmRoom;
++  const failLine = room?.passes[0]?.lines.find((line) => line.cand === "c1");
++  const baseLine = room?.passes[0]?.lines.find((line) => line.cand === room.base);
++  assert.equal(room?.base, "c2");
++  assert.equal(failLine?.rank, null);
++  assert.equal(failLine?.gatePass, false);
++  assert.equal(baseLine?.gatePass, true);
++  assert.equal(room?.judgeDisagrees, true);
++  assert.equal(room?.passes[0]?.judgeBase, "c1");
++  assert.equal(after.judgement?.base, room?.base);
++  console.log("safety-fact: recorded a judgement that names the gate-failer as base and gives it all 4s");
++  console.log(`safety-fact: judgeBase=${room?.passes[0]?.judgeBase} filmRoom.base=${room?.base} rank[c1]=${String(failLine?.rank)} gatePass[c1]=${String(failLine?.gatePass)} gatePass[base]=${String(baseLine?.gatePass)}`);
++});
++
++test("F5 judge base is advisory", () => {
++  const pick = withPasses([{
++    pass: 1,
++    labels: { A: "c1", B: "c2" },
++    cards: [card("A", 4), card("B", 1)],
++    base: "B",
++  }]);
++  const room = filmRoom(pick);
++  assert.equal(room?.base, "c1");
++  assert.equal(room?.passes[0]?.winner, "c1");
++  assert.equal(room?.passes[0]?.judgeBase, "c2");
++  assert.equal(room?.judgeDisagrees, true);
++  assert.equal(pick.judgement?.base, "c1");
++});
++
++test("F6 close call asks for a reversed pass", () => {
++  const close = withPasses([{
++    pass: 1,
++    labels: { A: "c1", B: "c2" },
++    cards: [card("A", 4), card("B", [4, 4, 2])],
++  }]);
++  const again = nextAction(close);
++  assert.equal(again.kind, "launch_judge");
++  if (again.kind !== "launch_judge") return;
++  const pass1 = labelMapForPass(close.id, ["c1", "c2"], 1);
++  const pass2 = labelMapForPass(close.id, ["c1", "c2"], 2);
++  assert.deepEqual([...pass2.order], [...pass1.order].reverse());
++  const sha = (cand: CandId) => close.candidates.find((item) => item.id === cand)?.report?.headSha ?? "";
++  const first = again.brief.indexOf(sha(pass2.order[0]!));
++  const second = again.brief.indexOf(sha(pass2.order[1]!));
++  assert.ok(first >= 0 && first < second);
++  assert.match(again.brief, /Pass 2/);
++
++  const apart = withPasses([{
++    pass: 1,
++    labels: { A: "c1", B: "c2" },
++    cards: [card("A", 4), card("B", 1)],
++  }]);
++  const graft = nextAction(apart);
++  assert.equal(graft.kind, "launch_graft");
++  if (graft.kind !== "launch_graft") return;
++  assert.equal(graft.startingRef, "dd/p-20261017-09/c1");
++});
++
++test("F7 consistent swap", () => {
++  const pick = withPasses([
++    { pass: 1, labels: { A: "c1", B: "c2" }, cards: [card("A", 4), card("B", 1)], base: "A" },
++    { pass: 2, labels: { A: "c2", B: "c1" }, cards: [card("A", 1), card("B", 4)], base: "B", reversed: true },
++  ]);
++  const room = filmRoom(pick);
++  assert.equal(room?.passes[0]?.winner, "c1");
++  assert.equal(room?.passes[1]?.winner, "c1");
++  assert.equal(room?.swap, "consistent");
++  assert.equal(room?.base, "c1");
++  assert.equal(room?.reason, "c1 won both passes.");
++  assert.equal(pick.judgement?.swapConsistent, true);
++  assert.equal(pick.judgement?.base, room?.base);
++});
++
++test("F8 flipped swap uses the tie rule", () => {
++  const wide = { files: 7, added: 240, removed: 31 };
++  const tight = { files: 6, added: 180, removed: 20 };
++  const pick = withPasses([
++    { pass: 1, labels: { A: "c1", B: "c2" }, cards: [card("A", 4, { diff: wide }), card("B", 2, { diff: tight })], base: "A" },
++    { pass: 2, labels: { A: "c2", B: "c1" }, cards: [card("A", 4, { diff: tight }), card("B", 2, { diff: wide })], base: "A", reversed: true },
++  ]);
++  const room = filmRoom(pick);
++  assert.equal(room?.passes[0]?.winner, "c1");
++  assert.equal(room?.passes[1]?.winner, "c2");
++  assert.equal(room?.swap, "flipped");
++  assert.equal(pick.judgement?.swapConsistent, false);
++  assert.equal(room?.base, "c2");
++  assert.deepEqual(room?.tieRule, { between: ["c1", "c2"], winner: "c2", deciding: "diff_lines" });
++  assert.equal(room?.reason, "Passes split (c1 won pass 1, c2 won pass 2). Tie rule: c2 over c1 on diff_lines (200 vs 271).");
++});
++
++function flipped(left: { diff?: DiffStat; risks?: string[] }, right: { diff?: DiffStat; risks?: string[] }): Pick {
++  return withPasses([
++    {
++      pass: 1,
++      labels: { A: "c1", B: "c2" },
++      cards: [card("A", 4, { diff: left.diff }), card("B", 1, { diff: right.diff })],
++    },
++    {
++      pass: 2,
++      labels: { A: "c2", B: "c1" },
++      cards: [card("A", 4, { diff: right.diff }), card("B", 1, { diff: left.diff })],
++      reversed: true,
++    },
++  ], { c1: left.risks ?? [], c2: right.risks ?? [] });
++}
++
++test("F9 tie rule order prefers fewer diff lines", () => {
++  const smaller = filmRoom(flipped(
++    { diff: { files: 4, added: 80, removed: 20 } },
++    { diff: { files: 4, added: 200, removed: 50 } },
++  ));
++  assert.equal(smaller?.tieRule?.deciding, "diff_lines");
++  assert.equal(smaller?.tieRule?.winner, "c1");
++  assert.match(smaller?.reason ?? "", /diff_lines \(100 vs 250\)/);
++  const missing = filmRoom(flipped(
++    { diff: { files: 2, added: 40, removed: 10 } },
++    {},
++  ));
++  assert.equal(missing?.tieRule?.deciding, "diff_lines");
++  assert.equal(missing?.tieRule?.winner, "c1");
++  assert.match(missing?.reason ?? "", /diff_lines \(50 vs missing\)/);
++});
++
++test("F9 tie rule order prefers fewer files", () => {
++  const room = filmRoom(flipped(
++    { diff: { files: 2, added: 10, removed: 10 } },
++    { diff: { files: 5, added: 12, removed: 8 } },
++  ));
++  assert.equal(room?.tieRule?.deciding, "files");
++  assert.equal(room?.tieRule?.winner, "c1");
++  assert.match(room?.reason ?? "", /files \(2 vs 5\)/);
++});
++
++test("F9 tie rule order prefers fewer risks", () => {
++  const same = { files: 3, added: 10, removed: 10 };
++  const room = filmRoom(flipped(
++    { diff: same, risks: [] },
++    { diff: { ...same }, risks: ["one", "two"] },
++  ));
++  assert.equal(room?.tieRule?.deciding, "risks");
++  assert.equal(room?.tieRule?.winner, "c1");
++  assert.match(room?.reason ?? "", /risks \(0 vs 2\)/);
++});
++
++test("F9 tie rule order prefers the lower cand id", () => {
++  const same = { files: 3, added: 10, removed: 10 };
++  const room = filmRoom(flipped({ diff: same }, { diff: { ...same } }));
++  assert.equal(room?.tieRule?.deciding, "cand_id");
++  assert.equal(room?.tieRule?.winner, "c1");
++  assert.match(room?.reason ?? "", /on cand_id\.$/);
++});
++
++test("F10 single pass", () => {
++  const pick = withPasses([{ pass: 1, labels: { A: "c1", B: "c2" }, cards: [card("A", 4), card("B", 1)] }]);
++  const room = filmRoom(pick);
++  assert.equal(room?.swap, "single");
++  assert.equal(pick.judgement?.swapConsistent, null);
++  assert.equal(room?.base, "c1");
++  assert.equal(room?.reason, "c1 won the only pass.");
++  assert.equal(room?.tieRule, null);
++});
++
++test("F11 unstable criteria", () => {
++  const pick = withPasses([
++    { pass: 1, labels: { A: "c1", B: "c2" }, cards: [card("A", [4, 3, 1]), card("B", [3, 3, 1])] },
++    { pass: 2, labels: { A: "c2", B: "c1" }, cards: [card("A", [3, 3, 3]), card("B", [2, 4, 1])], reversed: true },
++  ]);
++  assert.deepEqual(filmRoom(pick)?.unstable, ["clarity", "tests"]);
++});
++
++test("F12 judge brief locates code by SHA only", () => {
++  const pick = withPasses([{ pass: 1, labels: { A: "c1", B: "c2" }, cards: [card("A", 3), card("B", 2)] }]);
++  const brief = judgeBrief(pick, 2);
++  const pass2 = labelMapForPass(pick.id, ["c1", "c2"], 2);
++  const sha = (cand: CandId) => pick.candidates.find((item) => item.id === cand)?.report?.headSha ?? "";
++  assert.ok(brief.indexOf(`Label A: ${sha(pass2.order[0]!)}`) >= 0);
++  assert.ok(brief.indexOf(sha(pass2.order[0]!)) < brief.indexOf(sha(pass2.order[1]!)));
++  assert.match(brief, /weight 3/);
++  assert.match(brief, /weight 2/);
++  assert.match(brief, /weight 1/);
++  assert.doesNotMatch(brief, /\bc[1-5]\b/);
++  assert.doesNotMatch(brief, /dd\//);
++  for (const angle of report.angles) assert.equal(brief.includes(angle), false, angle);
++  const candidate = candidateBrief(pick, pick.candidates[0]!, false);
++  assert.doesNotMatch(candidate, /HIDDEN_RUBRIC_TOKEN/);
++  assert.doesNotMatch(candidate, /weight [123]/);
++});
++
++test("F18 judgement agrees with filmRoom", () => {
++  const trades = [
++    { from: "B", what: "one", pointers: ["src/ui/app.js:1"], why: "first" },
++    { from: "B", what: "two", pointers: ["src/ui/app.js:2"], why: "second" },
++    { from: "B", what: "three", pointers: ["src/ui/app.js:3"], why: "third" },
++    { from: "A", what: "base play", pointers: ["src/ui/app.js:4"], why: "from the base" },
++  ];
++  const pick = withPasses([{
++    pass: 1,
++    labels: { A: "c1", B: "c2" },
++    cards: [card("A", 4), card("B", 1)],
++    base: "A",
++    trades,
++  }]);
++  const room = filmRoom(pick);
++  assert.ok(room);
++  assert.equal(pick.judgement?.base, room.base);
++  assert.deepEqual(pick.judgement?.runnerUps, room.runnerUps);
++  assert.equal(pick.judgement?.swapConsistent, null);
++  assert.equal(room.swap, "single");
++  assert.deepEqual(pick.judgement?.trades.map((trade) => trade.what), ["one", "two"]);
++  assert.ok(pick.judgement?.trades.every((trade) => trade.from === "c2"));
++  assert.equal(pick.judgement?.trades.some((trade) => trade.from === room.base), false);
++});
+diff --git a/test/fixtures/fake-driver.ts b/test/fixtures/fake-driver.ts
+index 112ed57..2610793 100644
+--- a/test/fixtures/fake-driver.ts
++++ b/test/fixtures/fake-driver.ts
+@@ -6,6 +6,15 @@ import {
+   type ScoutingReport,
+ } from "../../src/core/index.ts";
+ 
++export interface CardPlan {
++  score?: number;
++  scores?: number[];
++  gates?: { build: "pass" | "fail" | "n/a"; tests: "pass" | "fail" | "n/a"; journey: "pass" | "fail" | "n/a" };
++  cross?: { passed: number; total: number };
++  diff?: { files: number; added: number; removed: number };
++  evidence?: string;
++}
++
+ export interface Scenario {
+   name: string;
+   idea: string;
+@@ -16,6 +25,7 @@ export interface Scenario {
+   verdicts: Array<"NOT_VERIFIED" | "INCONCLUSIVE" | "VERIFIED">;
+   expect: "drafted" | "failed";
+   policy?: boolean;
++  cards?: Array<Record<string, CardPlan>>;
+ }
+ 
+ export interface DriverIo {
+@@ -110,24 +120,87 @@ export const POLICY: Scenario = {
+   policy: true,
+ };
+ 
++const PASS = { build: "pass" as const, tests: "pass" as const, journey: "pass" as const };
++
++export const CLOSE: Scenario = {
++  name: "close",
++  idea: "Show the scorecard pass toggle on the pick page",
++  approval: "ask",
++  n: 3,
++  results: { c1: ["finish"], c2: ["finish"], c3: ["finish"] },
++  scores: { c1: 4, c2: 4, c3: 4 },
++  verdicts: ["VERIFIED"],
++  expect: "drafted",
++  cards: [
++    {
++      c1: { score: 4, cross: { passed: 10, total: 12 }, diff: { files: 7, added: 240, removed: 31 }, evidence: "pass 1 holds" },
++      c2: { scores: [4, 4, 2], cross: { passed: 11, total: 12 }, diff: { files: 6, added: 180, removed: 20 }, evidence: "pass 1 close" },
++      c3: {
++        score: 4,
++        gates: { build: "pass", tests: "pass", journey: "fail" },
++        cross: { passed: 9, total: 12 },
++        diff: { files: 9, added: 400, removed: 10 },
++        evidence: "journey failed",
++      },
++    },
++    {
++      c1: { scores: [4, 4, 2], cross: { passed: 10, total: 12 }, diff: { files: 7, added: 240, removed: 31 }, evidence: "pass 2 slipped" },
++      c2: { score: 4, cross: { passed: 11, total: 12 }, diff: { files: 6, added: 180, removed: 20 }, evidence: "pass 2 holds" },
++      c3: {
++        score: 4,
++        gates: { build: "pass", tests: "pass", journey: "fail" },
++        cross: { passed: 9, total: 12 },
++        diff: { files: 9, added: 400, removed: 10 },
++        evidence: "journey failed",
++      },
++    },
++  ],
++};
++
++function planWeighted(cand: string, plan: CardPlan | undefined, scenario: Scenario, pick: Pick): number {
++  const rubric = pick.report?.rubric ?? [];
++  const weight = rubric.reduce((sum, item) => sum + item.weight, 0);
++  if (weight === 0) return plan?.score ?? scenario.scores[cand] ?? 0;
++  let total = 0;
++  rubric.forEach((criterion, index) => {
++    const score = plan?.scores?.[index] ?? plan?.score ?? scenario.scores[cand] ?? 0;
++    total += score * criterion.weight;
++  });
++  return total / weight;
++}
++
+ function judgement(pick: Pick, pass: number, scenario: Scenario) {
+   const finished = pick.candidates.filter((cand) => cand.status === "finished").map((cand) => cand.id);
+   const map = labelMapForPass(pick.id, finished, pass);
+   const labelOf = (cand: string) => Object.entries(map.labels).find((entry) => entry[1] === cand)?.[0] ?? "A";
+-  const ranked = [...finished].sort((a, b) => (scenario.scores[b] ?? 0) - (scenario.scores[a] ?? 0));
+-  const base = ranked[0] ?? "c1";
+-  const cards = finished.map((cand) => ({
+-    label: labelOf(cand),
+-    gates: { build: "pass", tests: "pass", journey: "pass" },
+-    crossTests: { passed: 2, total: 2 },
+-    scores: (pick.report?.rubric ?? []).map((criterion) => ({
++  const planFor = scenario.cards?.[pass - 1];
++  const rubric = pick.report?.rubric ?? [];
++  const cards = finished.map((cand) => {
++    const plan = planFor?.[cand];
++    const gates = plan?.gates ?? PASS;
++    const cross = plan?.cross ?? { passed: 2, total: 2 };
++    const scores = rubric.map((criterion, index) => ({
+       criterionId: criterion.id,
+-      score: scenario.scores[cand] ?? 1,
+-      evidence: `${cand} ${criterion.id} output`,
+-    })),
+-  }));
+-  const loser = ranked[ranked.length - 1];
+-  const trades = loser && loser !== base
++      score: plan?.scores?.[index] ?? plan?.score ?? scenario.scores[cand] ?? 1,
++      evidence: plan?.evidence ?? `${criterion.name} scored on pass ${pass}`,
++    }));
++    return {
++      label: labelOf(cand),
++      gates,
++      crossTests: cross,
++      scores,
++      ...(plan?.diff ? { diff: plan.diff } : {}),
++    };
++  });
++  const ranked = [...finished]
++    .filter((cand) => {
++      const gates = planFor?.[cand]?.gates ?? PASS;
++      return gates.build !== "fail" && gates.tests !== "fail" && gates.journey !== "fail";
++    })
++    .sort((a, b) => planWeighted(b, planFor?.[b], scenario, pick) - planWeighted(a, planFor?.[a], scenario, pick) || (a < b ? -1 : 1));
++  const base = ranked[0] ?? finished[0] ?? "c1";
++  const loser = [...finished].reverse().find((cand) => cand !== base);
++  const trades = loser
+     ? [{ from: labelOf(loser), what: "Keep the smaller status helper", pointers: ["src/ui/app.js"], why: "One place to render a chip" }]
+     : [];
+   return {
+diff --git a/test/machine.test.ts b/test/machine.test.ts
+index beff50b..3274cc4 100644
+--- a/test/machine.test.ts
++++ b/test/machine.test.ts
+@@ -10,6 +10,7 @@ import {
+   followUpEvents,
+   judgeBrief,
+   lookupTransition,
++  filmRoom,
+   nextAction,
+   reduce,
+   type DraftEvent,
+@@ -232,10 +233,15 @@ test("A8 a close score asks for a reversed pass and sets swapConsistent", () =>
+     ev("judge_launched", { pass: 1, order: ["c1", "c2"], labels: { A: "c1", B: "c2" } }),
+     ev("judgement_recorded", { pass: 1, order: ["A", "B"], cards: [card("A", 4), card("B", 4)], base: "c1", runnerUps: ["c2"], trades: [], swapConsistent: null }),
+     ev("judge_launched", { pass: 2, order: ["c2", "c1"], labels: { A: "c2", B: "c1" }, reversed: true }),
+-    ev("judgement_recorded", { pass: 2, order: ["A", "B"], cards: [card("A", 4), card("B", 4)], base: "c2", runnerUps: ["c1"], trades: [], swapConsistent: null }),
++    ev("judgement_recorded", { pass: 2, order: ["A", "B"], cards: [card("A", 4), card("B", 1)], base: "c2", runnerUps: ["c1"], trades: [], swapConsistent: null }),
+   ]);
+   assert.equal(split.judgement?.swapConsistent, false);
+   assert.equal(split.judgement?.base, "c1");
++  const room = filmRoom(split);
++  assert.equal(room?.swap, "flipped");
++  assert.notEqual(room?.passes[0]?.winner, room?.passes[1]?.winner);
++  assert.equal(room?.tieRule?.winner, "c1");
++  assert.equal(room?.tieRule?.deciding, "risks");
+ });
+ 
+ test("A9 two fix replies then a failed draft stays unconfirmed", () => {
+diff --git a/test/server.test.ts b/test/server.test.ts
+index 76e3b46..cca9627 100644
+--- a/test/server.test.ts
++++ b/test/server.test.ts
+@@ -1,11 +1,12 @@
+ import assert from "node:assert/strict";
+ import { execFile } from "node:child_process";
+-import { mkdtemp } from "node:fs/promises";
++import { mkdtemp, writeFile } from "node:fs/promises";
+ import { request, type IncomingMessage } from "node:http";
+ import { tmpdir } from "node:os";
+ import { join } from "node:path";
+ import { test } from "node:test";
+ import { promisify } from "node:util";
++import { filmRoom, type CandId, type Pick } from "../src/core/index.ts";
+ import { startServer } from "../src/server/http.ts";
+ 
+ const exec = promisify(execFile);
+@@ -141,3 +142,117 @@ test("A11 default bind is 127.0.0.1:4420", async () => {
+     await new Promise((resolve) => child.once("exit", resolve));
+   }
+ });
++
++const serverRubric = [
++  { id: "clarity", name: "Clarity", weight: 3, howToGrade: "read" },
++  { id: "safety", name: "Safety", weight: 2, howToGrade: "prove" },
++  { id: "tests", name: "Tests", weight: 1, howToGrade: "run" },
++];
++
++async function judgedPick(data: string, judgeBase: "winner" | "loser", note?: string) {
++  const created = await dd(["intake", "--idea", "Serve the scorecard", "--source", "chat", "--target", "BoydVC/draft-day", "--n", "2", "--approval", "ask", "--data", data, "--json"]) as { pickId: string };
++  const id = created.pickId;
++  const reportPath = join(data, "report.json");
++  await writeFile(reportPath, JSON.stringify({
++    restatement: "You want the scorecard on the pick page.",
++    acceptance: [{ id: "show", when: "the pick is open", shall: "show the scorecard" }],
++    rubric: serverRubric,
++    designSketch: "A scorecard.",
++    verifyPlan: ["Open the pick."],
++    safetyFact: "A gate failure cannot become the base.",
++    angles: ["simplest thing that passes", "extensibility first"],
++    forbidden: ["Do not merge."],
++  }));
++  await dd(["record", id, "scouting_report_written", "--file", reportPath, "--data", data]);
++  await dd(["record", id, "scouting_approved", "--data", data]);
++  for (const cand of ["c1", "c2"] as const) {
++    await dd(["record", id, "candidate_launched", "--cand", cand, "--data", data]);
++    const path = join(data, `${cand}.json`);
++    await writeFile(path, JSON.stringify({
++      branch: `dd/${id}/${cand}`,
++      headSha: cand === "c1" ? "c".repeat(40) : "d".repeat(40),
++      summary: cand,
++      commands: [{ cmd: "npm test", exit: 0 }],
++      tests: { added: 1, passing: true },
++      screenshots: [],
++      risks: [],
++    }));
++    await dd(["record", id, "candidate_finished", "--cand", cand, "--file", path, "--data", data]);
++  }
++  await dd(["record", id, "judge_launched", "--data", data]);
++  const shown = await dd(["show", id, "--json", "--data", data]) as unknown as { labels: Record<string, CandId> };
++  const labelOf = (cand: CandId) => Object.entries(shown.labels).find((entry) => entry[1] === cand)?.[0] ?? "A";
++  const winner = labelOf("c1");
++  const loser = labelOf("c2");
++  const body = {
++    passes: [{
++      order: [winner, loser],
++      cards: [winner, loser].map((label) => ({
++        label,
++        gates: { build: "pass", tests: "pass", journey: "pass" },
++        crossTests: { passed: 4, total: 4 },
++        scores: serverRubric.map((criterion) => ({
++          criterionId: criterion.id,
++          score: label === winner ? 4 : 1,
++          evidence: `${criterion.name} holds`,
++        })),
++      })),
++    }],
++    base: judgeBase === "winner" ? winner : loser,
++    runnerUps: [judgeBase === "winner" ? loser : winner],
++    trades: [],
++    swapConsistent: null,
++  };
++  const judgementPath = join(data, "judgement.json");
++  await writeFile(judgementPath, JSON.stringify(body));
++  const args = ["record", id, "judgement_recorded", "--file", judgementPath, "--data", data];
++  if (note) args.push("--second-read", "disagree", "--note", note);
++  await dd(args);
++  return id;
++}
++
++test("F13 pick API carries filmRoom", async () => {
++  const data = await mkdtemp(join(tmpdir(), "dd-f13-"));
++  const id = await judgedPick(data, "winner");
++  const shown = await dd(["show", id, "--json", "--data", data]) as unknown as Pick & { filmRoom: ReturnType<typeof filmRoom> };
++  assert.ok(shown.filmRoom);
++  assert.deepEqual(shown.filmRoom, JSON.parse(JSON.stringify(filmRoom(shown))));
++  const server = await startServer({
++    host: "127.0.0.1",
++    port: 0,
++    dataDir: data,
++    configPath: join(root, "draftday.config.json"),
++    targetsPath: join(root, "targets.json"),
++  });
++  try {
++    const body = await fetch(`${server.url}/api/picks/${id}`).then((res) => res.json()) as { filmRoom: unknown };
++    assert.deepEqual(body.filmRoom, shown.filmRoom);
++  } finally {
++    await server.close();
++  }
++});
++
++test("F15 judge disagreement is on the pick API", async () => {
++  const data = await mkdtemp(join(tmpdir(), "dd-f15-"));
++  const note = "The judge's label loses to the board.";
++  const id = await judgedPick(data, "loser", note);
++  const server = await startServer({
++    host: "127.0.0.1",
++    port: 0,
++    dataDir: data,
++    configPath: join(root, "draftday.config.json"),
++    targetsPath: join(root, "targets.json"),
++  });
++  try {
++    const body = await fetch(`${server.url}/api/picks/${id}`).then((res) => res.json()) as {
++      filmRoom: { judgeDisagrees: boolean; secondRead: string; note: string; base: string; passes: { judgeBase: string | null; winner: string | null }[] };
++    };
++    assert.equal(body.filmRoom.judgeDisagrees, true);
++    assert.equal(body.filmRoom.secondRead, "disagree");
++    assert.equal(body.filmRoom.note, note);
++    assert.notEqual(body.filmRoom.base, body.filmRoom.passes[0]?.judgeBase);
++    assert.equal(body.filmRoom.passes[0]?.winner, body.filmRoom.base);
++  } finally {
++    await server.close();
++  }
++});

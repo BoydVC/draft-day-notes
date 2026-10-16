@@ -1,0 +1,15 @@
+OK   good-replay.json pass
+OK   good-lessons.json pass
+OK   hostile-collide-angles.json fail · 1 hard
+OK   hostile-missing-ears.json fail · 5 hard
+OK   hostile-ungradeable.json fail · 3 hard
+OK   hostile-markup.json pass
+OK   hostile-soft.json pass with 1 soft warning
+OK   good-markdown.md pass
+OK   collide jaccard 0.75
+OK   missing ears set
+OK   ungradeable set
+OK   mutation empty howToGrade
+OK   mutation identical angles
+OK   expected.json sha ea37423b282d…
+TOTAL 14/14

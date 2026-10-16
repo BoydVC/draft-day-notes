@@ -1,0 +1,21 @@
+{
+  "pick": "Pick 2: Pick timeline",
+  "spec": "SPEC-003-pick-timeline.md",
+  "rubric": [
+    {"id": "facts",    "name": "Timeline facts",           "weight": 3},
+    {"id": "truth",    "name": "One source of truth",      "weight": 3},
+    {"id": "warroom",  "name": "Decision log legibility",  "weight": 3},
+    {"id": "safety",   "name": "Untrusted payload safety", "weight": 2},
+    {"id": "tests",    "name": "Tests prove behavior",     "weight": 2},
+    {"id": "stack",    "name": "Clean stack, small diff",  "weight": 2}
+  ],
+  "candidates": {
+    "c1": {"branch": "dd/p2-timeline-a", "angle": "Event registry fold"},
+    "c2": {"branch": "dd/p2-timeline-b", "angle": "Spans first"},
+    "c3": {"branch": "dd/p2-timeline-c", "angle": "Snapshot story"}
+  },
+  "labels": {
+    "pass1": {"A": "c1", "B": "c3", "C": "c2"},
+    "pass2": {"A": "c2", "B": "c3", "C": "c1"}
+  }
+}

@@ -1,0 +1,59 @@
+head viewport "width=device-width, initial-scale=1, viewport-fit=cover" color-scheme "light dark" theme-color light #f4f0e4 dark #12160f
+tokens light 25 dark 25 (required 25)
+pair light --ink on --bg 15.11 ok (min 4.5)
+pair dark  --ink on --bg 16.06 ok (min 4.5)
+pair light --ink on --bg-2 13.18 ok (min 4.5)
+pair dark  --ink on --bg-2 14.32 ok (min 4.5)
+pair light --ink on --card 16.10 ok (min 4.5)
+pair dark  --ink on --card 15.42 ok (min 4.5)
+pair light --ink on --field 16.91 ok (min 4.5)
+pair dark  --ink on --field 16.23 ok (min 4.5)
+pair light --muted on --bg 6.68 ok (min 4.5)
+pair dark  --muted on --bg 9.57 ok (min 4.5)
+pair light --muted on --bg-2 5.82 ok (min 4.5)
+pair dark  --muted on --bg-2 8.53 ok (min 4.5)
+pair light --muted on --card 7.11 ok (min 4.5)
+pair dark  --muted on --card 9.19 ok (min 4.5)
+pair light --gold on --bg 6.66 ok (min 4.5)
+pair dark  --gold on --bg 10.84 ok (min 4.5)
+pair light --gold on --bg-2 5.81 ok (min 4.5)
+pair dark  --gold on --bg-2 9.66 ok (min 4.5)
+pair light --gold on --card 7.10 ok (min 4.5)
+pair dark  --gold on --card 10.40 ok (min 4.5)
+pair light --on-accent on --gold 7.16 ok (min 4.5)
+pair dark  --on-accent on --gold 10.67 ok (min 4.5)
+pair light --green on --bg-2 5.06 ok (min 4.5)
+pair dark  --green on --bg-2 8.71 ok (min 4.5)
+pair light --red on --bg-2 5.77 ok (min 4.5)
+pair dark  --red on --bg-2 6.07 ok (min 4.5)
+pair light --blue on --bg-2 6.56 ok (min 4.5)
+pair dark  --blue on --bg-2 7.71 ok (min 4.5)
+pair light --amber on --bg-2 5.35 ok (min 4.5)
+pair dark  --amber on --bg-2 7.37 ok (min 4.5)
+pair light --chip-ink on --chip-bg 14.07 ok (min 4.5)
+pair dark  --chip-ink on --chip-bg 9.71 ok (min 4.5)
+pair light --chip-done-ink on --chip-done-bg 6.83 ok (min 4.5)
+pair dark  --chip-done-ink on --chip-done-bg 4.78 ok (min 4.5)
+pair light --chip-stop-ink on --chip-stop-bg 6.71 ok (min 4.5)
+pair dark  --chip-stop-ink on --chip-stop-bg 4.83 ok (min 4.5)
+pair light --chip-review-ink on --chip-review-bg 8.18 ok (min 4.5)
+pair dark  --chip-review-ink on --chip-review-bg 5.83 ok (min 4.5)
+pair light --chip-work-ink on --chip-work-bg 7.27 ok (min 4.5)
+pair dark  --chip-work-ink on --chip-work-bg 4.94 ok (min 4.5)
+pair light --field-line on --bg-2 4.31 ok (min 3)
+pair dark  --field-line on --bg-2 3.12 ok (min 3)
+pair light --field-line on --field 5.53 ok (min 3)
+pair dark  --field-line on --field 3.54 ok (min 3)
+chip intake      default ok light 14.07 dark 9.71
+chip scouting    default ok light 14.07 dark 9.71
+chip awaiting_go work    ok light 7.27 dark 4.94
+chip combine     work    ok light 7.27 dark 4.94
+chip judging     review  ok light 8.18 dark 5.83
+chip grafting    work    ok light 7.27 dark 4.94
+chip physical    review  ok light 8.18 dark 5.83
+chip drafted     done    ok light 6.83 dark 4.78
+chip failed      stop    ok light 6.71 dark 4.83
+chip cancelled   stop    ok light 6.71 dark 4.83
+literals styles.css 0
+literals timeline.css 0
+result pass (0 problems)

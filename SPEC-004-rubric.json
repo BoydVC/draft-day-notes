@@ -1,0 +1,21 @@
+{
+  "pick": "Pick 3: Lessons + gardener",
+  "spec": "SPEC-004-lessons.md",
+  "rubric": [
+    { "id": "facts", "name": "Lesson facts", "weight": 3 },
+    { "id": "truth", "name": "One source of truth", "weight": 3 },
+    { "id": "locker", "name": "Locker Room legibility", "weight": 3 },
+    { "id": "safety", "name": "Untrusted text safety", "weight": 2 },
+    { "id": "tests", "name": "Tests drive the entry points", "weight": 2 },
+    { "id": "stack", "name": "Clean stack, small diff", "weight": 2 }
+  ],
+  "candidates": {
+    "c1": { "branch": "dd/p3-lessons-a", "angle": "Kind registry" },
+    "c2": { "branch": "dd/p3-lessons-b", "angle": "Flat findings first" },
+    "c3": { "branch": "dd/p3-lessons-c", "angle": "Weekly to-do list" }
+  },
+  "labels": {
+    "pass1": { "A": "c3", "B": "c1", "C": "c2" },
+    "pass2": { "A": "c2", "B": "c1", "C": "c3" }
+  }
+}

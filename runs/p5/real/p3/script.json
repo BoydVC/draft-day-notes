@@ -1,0 +1,28 @@
+{
+  "id": "p-20261017-93",
+  "by": "grok-bot",
+  "provenance": "Draft Day Pick 3 (SPEC 004, Lessons + gardener), driven by hand by Grok Bot on Sat Oct 17, 2026. Run edges are the first and last tool timestamps in each Cursor agent transcript (CloudAgent dump). The fix loop is fix_requested on the graft agent's second run; dd models the re-verify as the end of that fix run. Other events use LOG.tsv row times or file birth times. Reports are the agents' own blocks, unedited, except judge pass 2, which carries the one stray bracket repair logged at 15:17:31 ET (raw kept in runs/p3/judge-pass2.raw.md).",
+  "steps": [
+    {"ts": "2026-10-17T14:27:56.363Z", "type": "pick_created", "idea": "Lessons + gardener: dd lessons groups repeated judge and verifier findings and proposes one engine check per group", "source": "plan", "target": "BoydVC/draft-day", "n": 3, "approval": "ask", "why": "fixtures/lessons-week.jsonl birth time (first Pick 3 artifact)"},
+    {"ts": "2026-10-17T18:00:51.000Z", "type": "scouting_report_written", "reportFile": "report.json", "why": "LOG.tsv 14:00:51 ET: SPEC-004 + LAUNCH-004 written"},
+    {"ts": "2026-10-17T18:02:24.000Z", "type": "scouting_approved", "via": "human", "why": "launch go, the second before the first candidate's first action (LOG.tsv 14:02:35 ET logs it after the launch)"},
+    {"ts": "2026-10-17T18:02:24.634Z", "type": "candidate_launched", "cand": "c2", "agentId": "bc-e6a23034-7db7-5400-abb1-6cd7f8c56cd1", "branch": "dd/p3-lessons-b"},
+    {"ts": "2026-10-17T18:02:26.574Z", "type": "candidate_launched", "cand": "c1", "agentId": "bc-d337c478-b661-532d-9256-92960ad77855", "branch": "dd/p3-lessons-a"},
+    {"ts": "2026-10-17T18:02:42.390Z", "type": "candidate_launched", "cand": "c3", "agentId": "bc-89b8625b-1cfb-5202-96f8-b3a83e0b2e46", "branch": "dd/p3-lessons-c"},
+    {"ts": "2026-10-17T18:21:41.242Z", "type": "candidate_finished", "cand": "c2", "file": "c2-final.md"},
+    {"ts": "2026-10-17T18:23:18.767Z", "type": "candidate_finished", "cand": "c1", "file": "c1-final.md"},
+    {"ts": "2026-10-17T18:26:10.450Z", "type": "candidate_finished", "cand": "c3", "file": "c3-final.md"},
+    {"ts": "2026-10-17T18:27:56.309Z", "type": "judge_launched", "order": ["c3", "c1", "c2"], "labels": {"A": "c3", "B": "c1", "C": "c2"}, "agentId": "bc-5e4dd6d8-2771-573e-873d-27e14bb8b113"},
+    {"ts": "2026-10-17T19:00:20.807Z", "type": "judgement_recorded", "file": "judge-pass1.md", "secondRead": "agree", "note": "All 4.00, 16/16 cross-tests each; smallest diff decides."},
+    {"ts": "2026-10-17T19:02:06.938Z", "type": "judge_launched", "order": ["c2", "c1", "c3"], "labels": {"A": "c2", "B": "c1", "C": "c3"}, "agentId": "bc-5bf37137-8758-5e07-b1d5-4a474f5d12f8"},
+    {"ts": "2026-10-17T19:15:30.777Z", "type": "judgement_recorded", "file": "judge-pass2.md", "secondRead": "agree", "note": "Swap flipped; tie c1 vs c2 broken by diff lines 1635 < 1771."},
+    {"ts": "2026-10-17T19:18:00.546Z", "type": "graft_launched", "agentId": "bc-eb9afbad-63f4-5a1b-be6e-43e6744f4d51"},
+    {"ts": "2026-10-17T19:31:37.337Z", "type": "graft_recorded", "prNumber": 5, "headSha": "06ce1ae4d2bd0068f2f331bb0009c53e91f7e3df", "summary": "Base c1 kind registry; trades c3 rank-1 card and Clear; eventlog import fix."},
+    {"ts": "2026-10-17T19:33:08.880Z", "type": "physical_launched", "agentId": "bc-cd9eddc8-0752-57ef-9e4b-e0407e00c717"},
+    {"ts": "2026-10-17T19:49:20.439Z", "type": "verdict_recorded", "file": "verdict1.md"},
+    {"ts": "2026-10-17T19:50:52.000Z", "type": "lesson_recorded", "topic": "physical", "text": "dd lessons --json passed raw C1 control characters (U+007F-U+009F) through from payloads; escape them before printing.", "why": "LOG.tsv 15:50:52 ET"},
+    {"ts": "2026-10-17T19:51:17.391Z", "type": "fix_requested"},
+    {"ts": "2026-10-17T20:08:00.542Z", "type": "verdict_recorded", "file": "verdict2.md"},
+    {"ts": "2026-10-17T20:09:23.000Z", "type": "draft_pr_confirmed", "prNumber": 5, "why": "LOG.tsv 16:09:23 ET: PR #5 draft, VERIFIED"}
+  ]
+}

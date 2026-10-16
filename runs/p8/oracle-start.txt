@@ -1,0 +1,2 @@
+no fixtures at /workspace/tokenmax/poteto-pipeline/runs/p8/start/test/fixtures/ledger
+TOTAL 0/0

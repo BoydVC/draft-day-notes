@@ -1,0 +1,16 @@
+ok   sha256 README.md
+ok   sha256 bigboard-harness.d.mts
+ok   sha256 bigboard-harness.mjs
+ok   sha256 expected.json
+ok   sha256 hostile.jsonl
+ok   sha256 league.jsonl
+ok   sha256 season.jsonl
+ok   oracle season  4 picks · 4 drafted · verified 4/4 (2 first try) · 9 trades grafted
+ok   oracle league  13 picks · 9 drafted · verified 9/10 (2 first try) · 10 trades grafted
+ok   oracle league-oct17  6 picks · 4 drafted · verified 4/4 (2 first try) · 9 trades grafted
+ok   oracle league-week  5 picks · 4 drafted · verified 4/5 (0 first try) · 0 trades grafted
+ok   oracle hostile  1 pick · 1 drafted · verified 1/1 (1 first try) · 3 trades grafted
+ok   mutation: drop P6 verdict
+ok   mutation: P4 pass-2 card A gate fail
+ok   mutation: P5 judge 30 min slower
+TOTAL 15/15

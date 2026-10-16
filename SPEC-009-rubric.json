@@ -1,0 +1,22 @@
+{
+  "pick": "Pick 8: Season Ledger",
+  "spec": "SPEC-009-season-ledger.md",
+  "rubric": [
+    { "id": "ledger", "name": "Ledger fidelity on fixtures", "weight": 3 },
+    { "id": "engine", "name": "One source of truth", "weight": 2 },
+    { "id": "writer", "name": "Single writer, validated input", "weight": 2 },
+    { "id": "screen", "name": "Season ledger screens", "weight": 2 },
+    { "id": "glance", "name": "Merge call at a glance", "weight": 2 },
+    { "id": "safety", "name": "Untrusted text safety", "weight": 2 },
+    { "id": "stack", "name": "Clean stack, small diff", "weight": 2 }
+  ],
+  "candidates": {
+    "c1": { "branch": "dd/p8-season-ledger-a", "angle": "Ledger book" },
+    "c2": { "branch": "dd/p8-season-ledger-b", "angle": "Merge desk" },
+    "c3": { "branch": "dd/p8-season-ledger-c", "angle": "Audit trail" }
+  },
+  "labels": {
+    "pass1": { "A": "c2", "B": "c3", "C": "c1" },
+    "pass2": { "A": "c1", "B": "c3", "C": "c2" }
+  }
+}

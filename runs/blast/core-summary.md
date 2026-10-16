@@ -1,0 +1,1 @@
+core review bc-b3007773: 6 confirmed (attempt-keyed record dupes; ledger verdict order; torn events.jsonl -> false docs-only; withLock 10s steal; concurrent intake dup; tie rule missing diff), 8 cleared. Full report in agent summary/transcript.

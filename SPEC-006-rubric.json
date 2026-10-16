@@ -1,0 +1,21 @@
+{
+  "pick": "Pick 5: Replay mode",
+  "spec": "SPEC-006-replay.md",
+  "rubric": [
+    { "id": "frames", "name": "Frame fidelity on real logs", "weight": 3 },
+    { "id": "deck", "name": "Playback discipline", "weight": 3 },
+    { "id": "screen", "name": "Game-film screens", "weight": 3 },
+    { "id": "safety", "name": "Same-origin, text-only safety", "weight": 2 },
+    { "id": "tests", "name": "Harness-backed tests", "weight": 2 },
+    { "id": "stack", "name": "Clean stack, small diff", "weight": 2 }
+  ],
+  "candidates": {
+    "c1": { "branch": "dd/p5-replay-a", "angle": "Frame engine" },
+    "c2": { "branch": "dd/p5-replay-b", "angle": "Broadcast booth" },
+    "c3": { "branch": "dd/p5-replay-c", "angle": "Chapter cuts" }
+  },
+  "labels": {
+    "pass1": { "A": "c2", "B": "c1", "C": "c3" },
+    "pass2": { "A": "c3", "B": "c1", "C": "c2" }
+  }
+}

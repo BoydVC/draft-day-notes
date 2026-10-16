@@ -1,0 +1,56 @@
+pass W11 the Big Board region holds exactly one table with tbody#board-body
+pass W11 column headers read Pick, Idea, Stage, Status, Runs
+pass W11 one row per pick then per inbox item (10 for board-states.json)
+pass W11 every row has exactly five cells
+pass W11 pick rows keep data-pick-id in API order
+pass W11 each pick row's first link is #/picks/<id>
+pass W11 no src/ui/*.js reads the viewport (matchMedia, innerWidth, screen., resize …)
+pass W12 form named New pick with Idea, Target, Candidates, Add pick
+pass W12 Idea is a textarea
+pass W12 Target value BoydVC/draft-day
+pass W12 Target autocapitalize none|off, autocorrect off, spellcheck false, autocomplete off
+pass W12 Candidates is 1-5 with value 3 (number input with inputmode numeric, or select 1..5)
+pass W12 Add pick is type=submit
+pass W12 a role=status node sits in the New pick region
+pass W13 one submit makes exactly one POST /api/intake
+pass W13 body is exactly {idea,target,n,source:warroom} (any key order)
+pass W13 content-type application/json
+pass W13 the only other requests after submit are GET /api/board
+pass W13 every request is same-origin (path starts with one /)
+pass W14 Add pick is disabled or aria-disabled while in flight
+pass W14 status reads Sending… while in flight
+pass W14 a second submit in flight makes no second POST
+pass W14 after a full re-render in flight the new Add pick is still guarded
+pass W14 a submit from the re-rendered form in flight makes no second POST
+pass W14 Add pick is enabled again after the answer
+pass W14 the form on screen shows the outcome after an in-flight re-render
+pass W15 ok: status text
+pass W15 ok: Idea is cleared
+pass W15 ok: Add pick enabled after
+pass W15 policy: status text
+pass W15 policy: Idea is cleared
+pass W15 policy: Add pick enabled after
+pass W15 error: status text
+pass W15 error: Idea keeps the text
+pass W15 error: Add pick enabled after
+pass W15 reject: status text
+pass W15 reject: Idea keeps the text
+pass W15 reject: Add pick enabled after
+pass W15 badjson: status text
+pass W15 badjson: Idea keeps the text
+pass W15 badjson: Add pick enabled after
+pass W15 hostile error text: status shows it literally
+pass W15 hostile error text: no img, script or iframe node exists
+pass W15 hostile error text: no on* attribute was ever set
+pass W16 ok: status survives a full re-render
+pass W16 error: status survives a full re-render
+pass W16 error: Idea still holds the submitted text after a re-render
+pass W16 reject: status survives a full re-render
+pass W16 reject: Idea still holds the submitted text after a re-render
+pass W16 a resubmit from the re-rendered form sends the kept idea (second POST carries the same idea)
+pass W15 no unhandled promise rejection from the page
+pass W17 every fetch is same-origin /api/board, /api/intake, /api/picks/<id> or /api/lessons
+pass W17 the page opens exactly one EventSource, on /api/events
+53/53 pass
+W11 7/7  W12 7/7  W13 5/5  W14 7/7  W15 19/19  W16 6/6  W17 2/2
+harness file:///workspace/tokenmax/poteto-pipeline/fixtures/phone/dom-harness.mjs

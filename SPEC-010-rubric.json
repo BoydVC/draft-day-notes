@@ -1,0 +1,21 @@
+{
+  "pick": "Pick 9: Swap-bias meter",
+  "spec": "SPEC-010-swap-bias.md",
+  "rubric": [
+    { "id": "swap", "name": "Swap fidelity on fixtures", "weight": 3 },
+    { "id": "engine", "name": "One source of truth", "weight": 2 },
+    { "id": "screen", "name": "Swap screens", "weight": 2 },
+    { "id": "glance", "name": "Bias at a glance", "weight": 2 },
+    { "id": "safety", "name": "Untrusted model names", "weight": 2 },
+    { "id": "stack", "name": "Clean stack, small diff", "weight": 2 }
+  ],
+  "candidates": {
+    "c1": { "branch": "dd/p11-swap-bias-a", "angle": "Bias ledger" },
+    "c2": { "branch": "dd/p11-swap-bias-b", "angle": "Flip gauge" },
+    "c3": { "branch": "dd/p11-swap-bias-c", "angle": "Evidence trail" }
+  },
+  "labels": {
+    "pass1": { "A": "c3", "B": "c1", "C": "c2" },
+    "pass2": { "A": "c2", "B": "c1", "C": "c3" }
+  }
+}

@@ -1,0 +1,64 @@
+  table  awaiting_go>scouting_approved>combine 3780
+  table  combine>candidate_dropped>combine 7200
+  table  combine>candidate_failed>combine 21600
+  table  combine>candidate_finished>combine 14400
+  table  combine>candidate_launched>combine 36000
+  EXTRA  combine>judge_launched>judging 5280
+  EXTRA  combine>physical_launched>physical 1920
+  EXTRA  combine>pick_failed>failed 360
+  EXTRA  combine>scouting_approved>combine 3780
+  EXTRA  grafting>graft_recorded>grafting 5280
+  EXTRA  grafting>physical_launched>physical 5280
+  table  intake>scouting_report_written>awaiting_go 3780
+  table  intake>scouting_report_written>combine 3780
+  EXTRA  judging>graft_launched>grafting 5280
+  table  judging>judge_launched>judging 2880
+  table  judging>judgement_recorded>judging 8160
+  table  physical>draft_pr_confirmed>drafted 3360
+  table  physical>fix_requested>physical 12480
+  EXTRA  physical>pick_failed>failed 3840
+  table  physical>verdict_recorded>physical 19680
+  next-table awaiting_go>await_go 3780
+  next-table combine>launch_candidate 36000
+  next-table combine>launch_judge 5280
+  next-table combine>launch_physical 1920
+  next-table drafted>announce 3360
+  next-table failed>none 4200
+  next-table grafting>launch_physical 5280
+  next-table intake>write_scouting_report 7560
+  next-table judging>launch_graft 5280
+  next-table judging>launch_judge 2880
+  next-table physical>confirm_draft_pr 3360
+  next-table physical>reply_fix 12480
+  NEXT-UNSEEN scouting>write_scouting_report ( alias of intake )
+  NEXT-UNSEEN combine>wait ( someone running )
+  NEXT-UNSEEN combine>none ( 0 finished )
+  NEXT-UNSEEN combine>none ( relaunch would exceed the cap )
+  NEXT-UNSEEN judging>wait ( awaiting scorecard )
+  NEXT-UNSEEN judging>none ( no gate passers )
+  NEXT-UNSEEN judging>none ( judge pass would exceed the cap )
+  NEXT-UNSEEN grafting>wait ( trade not recorded )
+  NEXT-UNSEEN physical>wait ( no verdict )
+  NEXT-UNSEEN physical>none ( fix loop would exceed the cap )
+  NEXT-UNSEEN cancelled>none ( terminal )
+  UNSEEN intake>pick_created>intake ( accepted )
+  UNSEEN intake>pick_created>failed ( policy )
+  UNSEEN scouting>scouting_report_written>awaiting_go ( approval=ask )
+  UNSEEN scouting>scouting_report_written>combine ( approval=auto )
+  UNSEEN awaiting_go>pick_cancelled>cancelled ( no )
+  UNSEEN awaiting_go>timeout>cancelled ( 48h )
+  UNSEEN combine>candidates_settled>judging ( >=2 finished )
+  UNSEEN combine>candidates_settled>physical ( walkover: exactly 1 finished )
+  UNSEEN combine>candidates_settled>failed ( 0 finished )
+  UNSEEN judging>judgement_recorded>grafting ( base chosen )
+  UNSEEN judging>judgement_recorded>failed ( none pass hard gates )
+  UNSEEN grafting>graft_launched>grafting ( trade running )
+  UNSEEN grafting>graft_recorded>physical ( draft PR opened )
+  UNSEEN physical>physical_launched>physical ( verifier running )
+  UNSEEN physical>verdict_recorded>failed ( fix loops exhausted )
+  UNSEEN drafted>lesson_recorded>drafted ( terminal )
+  UNSEEN failed>pick_failed>failed ( terminal )
+  UNSEEN failed>lesson_recorded>failed ( terminal )
+  UNSEEN cancelled>pick_cancelled>cancelled ( terminal )
+  UNSEEN cancelled>lesson_recorded>cancelled ( terminal )
+sweep 7560 scenarios, 0 with problems, 57625 ms {"failed:not_verified":3840,"drafted":3360,"failed:no_candidates":360}

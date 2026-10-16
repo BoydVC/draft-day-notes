@@ -1,0 +1,164 @@
+{
+ "restatement": "Add Big Board stats. Given the pick logs in the data directory (and an optional `since`/`until` window), one pure function `bigBoardStats` returns a machine-readable `BigBoardStats`: win rate by candidate angle and by candidate slot, trades grafted per pick, verify pass rate (first try and final) with fix loops and verdict counts, and the median time spent in each stage. The same function powers `dd stats`, `GET /api/stats` and the stats view at `#/stats`. Boyd opens the Big Board on his iPhone, taps `Stats`, and within five seconds can say which angle wins most, how many trades a pick takes, and how often the physical verifies first time.",
+ "acceptance": [
+  {
+   "id": "B1",
+   "when": "`bigBoardStats` runs on `season.jsonl` (via the harness's `readLogs`) with no window and `now` 2026-10-19T00:00:00Z",
+   "shall": "return summary `4 picks · 4 drafted · verified 4/4 (2 first try) · 9 trades grafted` and `expectedFor` equal to the `season` row. (Baseline: no function.) → `test/bigboard.test.ts` \"B1 season\""
+  },
+  {
+   "id": "B2",
+   "when": "it runs on every row of `expected.json` (fixture, window, `now`)",
+   "shall": "match all five rows exactly. → \"B2 expected.json\""
+  },
+  {
+   "id": "B3",
+   "when": "it runs on `league.jsonl`",
+   "shall": "give angle `simplest thing that passes` 2 wins, 4 entries, 1 walkover; slot c1 6 wins, 8 entries, 1 walkover; and sort angle rows by rate, wins, entries, key. → \"B3 win rate\""
+  },
+  {
+   "id": "B4",
+   "when": "it runs on `season.jsonl`",
+   "shall": "list trade rows 93→2, 94→2, 95→2, 96→3 with base `c1` and mean 2.25; WHEN on `league.jsonl`, `p-20261014-01` SHALL be a row with `base: null` and 0 trades and the mean SHALL be 1.11. → \"B4 trades\""
+  },
+  {
+   "id": "B5",
+   "when": "it runs on `league.jsonl`",
+   "shall": "report verify first try 2/10, final 9/10, fix loops 6, verdicts 9/5/3, and Pick 4's NOT_VERIFIED-then-VERIFIED SHALL count as final but not first try. → \"B5 verify\""
+  },
+  {
+   "id": "B6",
+   "when": "it runs on `season.jsonl`",
+   "shall": "report the six stage medians 1667144, 91000, 1561654, 2889118, 827308, 834344 ms in `STAGE_ORDER`; the live pick `p-20261017-97` SHALL contribute no stage time; an empty input SHALL give six rows with `picks` 0 and `medianText` `—`. → \"B6 stages\""
+  },
+  {
+   "id": "B7",
+   "when": "a window is given",
+   "shall": "keep only picks created inside it (`league-oct17`, `league-week` rows); WHEN the window is invalid, `/api/stats` and `dd stats` SHALL fail with the `lessonWindow` message. → \"B7 window\""
+  },
+  {
+   "id": "B8",
+   "when": "it runs on `hostile.jsonl` plus a log with `events: null` and a log with id `notapick`",
+   "shall": "count 1 selftest exclusion and skip `id mismatch`, `unreadable` and `bad pick id`; WHEN there are no logs THE SYSTEM SHALL return summary `No picks yet`. → \"B8 skips and exclusions\""
+  },
+  {
+   "id": "B9",
+   "when": "Pick 6's verdict is dropped, a Pick 4 gate is failed, or Pick 5's judge events are moved 30 minutes later",
+   "shall": "change the projection each time (the box oracle's three mutations). → \"B9 mutations\""
+  },
+  {
+   "id": "B10",
+   "when": "`bigBoardStats` runs on `league.jsonl`",
+   "shall": "agree, pick by pick, with `reduce(events, now).judgement.base` for wins and with the closed spans of `timeline(events, now).stages` for stage time (a property check through the public core exports). → \"B10 engine agreement\""
+  },
+  {
+   "id": "B11",
+   "when": "`dd stats` runs on a data dir seeded from `league.jsonl`",
+   "shall": "exit 0 with first line equal to the summary; WITH `--json` the output SHALL equal `bigBoardStats(loadLogs…)`; WITH `--since 2026-10-17` the summary SHALL start `6 picks`; `dd help` SHALL list `dd stats`. → \"B11 dd stats\""
+  },
+  {
+   "id": "B12",
+   "when": "`GET /api/stats` is called on that data dir",
+   "shall": "return 200 and the same JSON as `dd stats --json`; WITH `since=2026-10-16&until=2026-10-12` it SHALL return 400 `{\"error\":\"since must be before until\"}`; `/bigboard.js` and `/bigboard.css` SHALL be served 200. → \"B12 GET /api/stats\""
+  },
+  {
+   "id": "B13",
+   "when": "`draftDayBigBoard(stats, el)` paints the `league` stats (loaded in a `vm` sandbox with a minimal `el`, as the lessons tests do)",
+   "shall": "render the binding DOM with every data attribute equal to the stats; WHEN Pick 4's `dom-harness.mjs` opens `#/` THE SYSTEM SHALL show a `Stats` link to `#/stats`; WHEN it opens `#/stats?since=2026-10-17` THE SYSTEM SHALL request `/api/stats?since=2026-10-17` and, because the harness answers 404, show a readable error with a `Big Board` link instead of a blank page. (Baseline: hash falls through to the Big Board.) → \"B13 view and link\""
+  },
+  {
+   "id": "B14",
+   "when": "`hostile.jsonl` stats are painted by `draftDayBigBoard`",
+   "shall": "create no `img`, `script`, `iframe` or `svg` node and no `on*` attribute, every hostile string SHALL appear as text, and every `href` SHALL be `#/`, `#/stats…` or `#/picks/p-YYYYMMDD-NN`. → \"B14 hostile text stays text\""
+  },
+  {
+   "id": "B15",
+   "when": "`src/ui/bigboard.js` and `bigboard.css` are read",
+   "shall": "contain no `fetch(`, no viewport reads (W11), no color literals in `bigboard.css` (W5 with `bigboard.css` added), no `innerHTML`/`eval`/`localStorage`/`history.`, and SHALL assign `globalThis.draftDayBigBoard`. → \"B15 source rules\" + W5"
+  },
+  {
+   "id": "B16",
+   "when": "`http.ts` and `index.html` are read",
+   "shall": "list `\"/bigboard.js\"` and `\"/bigboard.css\"` after the linter entries in the static `files` array, link stylesheets `… linter.css, bigboard.css`, and load scripts `… linter.js, bigboard.js, app.js` with literal tags; and the four closed-list tests SHALL carry exactly the touch-map edit. → \"B16 wiring\""
+  },
+  {
+   "id": "B17",
+   "when": "the stats view is probed with `cdp-shot.mjs` at 390×844 and 430×932 dark, 390×844 light, 1280×800 light and dark, plus `?since=2026-10-17` and `?until=2026-10-01` at 390 dark",
+   "shall": "print `\"ok\":true`, `\"offOrigin\":[]`, `scrollWidth` ≤ width, and every stats control and link ≥ 44×44 at every width including 1280; WHEN the Big Board is probed at 390 dark THE SYSTEM SHALL stay `\"ok\":true` and show `Stats`. → journeys `features/big-board-stats.md` \"stats-phone\", \"stats-desktop\", \"stats-window\", \"stats-empty\", \"stats-link\""
+  },
+  {
+   "id": "B18",
+   "when": "`npm test` runs after this change",
+   "shall": "pass every earlier test (SPEC 001–007 suites, import boundary, network grep, T18, L18, W1–W17, R15 and S15 as amended) with `test/guards.test.ts` byte-identical, zero runtime dependencies, the 7 uploads byte-identical (sha256 above), `test/fixtures/{phone,replay,lessons,timeline,linter}/*` unchanged, `dd selftest` printing its `happy`, `policy`, `walkover` and `close` lines unchanged, and `git diff --name-only START...HEAD` inside the touch map. → full `npm test` + VERIFY 3, 5 and 9"
+  },
+  {
+   "id": "B19",
+   "when": "the verify skill's `features/big-board-stats.md` is driven",
+   "shall": "produce the eight screenshots of VERIFY 6, commit them under `docs/screens/p7-big-board/`, list their repo paths in the `dd-report` `screenshots` field, and show the window form (or the hash) narrowing `13 picks` to `6 picks` in a real browser. → journey \"stats-window\""
+  }
+ ],
+ "rubric": [
+  {
+   "id": "numbers",
+   "name": "Stats fidelity on fixtures",
+   "weight": 3,
+   "howToGrade": "Your pooled B1–B9. Then by hand: run `bigBoardStats` (public core export) on every `expected.json` row and compare `expectedFor(…)` with the row; run the three oracle mutations (drop Pick 6's verdict, fail a Pick 4 gate, slow Pick 5's judge 30 min) and confirm each changes the projection. 4 = all five rows match and all three mutations move. One wrong row = 2 at most. A different median rule or rounding = 1 at most."
+  },
+  {
+   "id": "engine",
+   "name": "One source of truth",
+   "weight": 3,
+   "howToGrade": "B10 and a read of `src/core/bigboard.ts`. 4 = every pick-level number comes from `reduce()` and every stage time from `timeline().stages` (no second status machine, no second stage model, no re-implemented Film Room selection); skip reasons and window reuse `lessonWindow`; text and JSON both come from the one `BigBoardStats`. A second reducer or stage walker in `src/` = 1 at most. Harness code copied into `src/` = 2 at most."
+  },
+  {
+   "id": "screen",
+   "name": "Big Board stats screens",
+   "weight": 3,
+   "howToGrade": "Run `cdp-shot.mjs` per label on `#/stats` at 390×844 and 430×932 dark, 390×844 light, 1280×800 light and dark; `#/stats?since=2026-10-17` and `#/stats?until=2026-10-01` (empty) at 390 dark; and the Big Board at 390 dark showing `Stats` (8 runs). 4 = every probe `ok: true`, `scrollWidth` ≤ width, `offOrigin` `[]`, every stats control and link ≥ 44×44 at **every** width including 1280, and the empty state reads `No picks yet`. 2 = one W7/W8/W9 problem left. 0 = sideways scroll at 390 or a control under 44×44 at 1280. Screenshots required for a 3 or 4."
+  },
+  {
+   "id": "glance",
+   "name": "Five-second read",
+   "weight": 2,
+   "howToGrade": "Look at the 390×844 dark `#/stats` screenshot yourself (seeded league). 4 = without scrolling you can read the summary, which angle has the best record, trades per pick, and the first-try verify rate, and walkovers are visibly not counted as wins. 2 = the numbers are there but need a scroll or a legend hunt. 0 = raw JSON or numbers without labels."
+  },
+  {
+   "id": "safety",
+   "name": "Untrusted log text safety",
+   "weight": 2,
+   "howToGrade": "Re-run the safety-fact proof with `hostile.jsonl` and your own extras (markup in an idea, an angle, a lesson, a graft summary; an angle `javascript:alert(1)`; a `skipped` and a trade row whose `pickId` is `p-20261018-77\"><img src=x>`). Grep `src/ui/bigboard.*` for `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `eval(`, `new Function`, `localStorage`, `sessionStorage`, `document.cookie`, `history.`, `@import`, `url(http`, `//fonts.`. Any off-origin request, markup from log text, an `href` built from anything but a valid pick id, or stored state = 0."
+  },
+  {
+   "id": "stack",
+   "name": "Clean stack, small diff",
+   "weight": 2,
+   "howToGrade": "`git diff --name-only START...<sha>` stays inside the touch map; any edit to a do-not-touch file (including any non-sanctioned line in the four closed-list files) caps this at 1. The closed-list hunks are exactly the touch-map text. `git diff START -- src/server/http.ts` is the static `files` line plus the `GET /api/stats` handler. `git merge-base --is-ancestor START <sha>` holds; if `dd/p6-linter` moved, `git merge-tree --write-tree --name-only <sha> origin/dd/p6-linter` conflicts at most in `docs/DECISIONS.tsv`. Compare `diff.added + diff.removed` with the others (PNG files count as files, not lines). Zero runtime deps."
+  }
+ ],
+ "designSketch": "Boyd, phone in dark mode, on the Big Board, taps Stats:\n  Big Board                                          (≥ 44×44)\n  Big Board stats\n  [ 13 picks · 9 drafted · verified 9/10 (2 first try) · 10 trades grafted ]   4 selftest picks not counted\n  Win rate by angle:  frame engine 1/1 100% · kind registry 1/1 100% · … · simplest thing that passes 2/4 50% (+1 walkover)\n  Win rate by slot:   c1 6/8 75% (+1) · c2 2/8 25% · c3 0/7 0%\n  Trades per pick:    p-20261017-93 2 · p-20261017-94 2 · p-20261017-95 2 · p-20261018-96 3 · mean 1.11\n  Verify pass rate:   first try 2/10 · final 9/10 · fix loops 6\n  Time per stage:     Intake 7m · Scouting Report 5m · Combine 35m · Film Room 50m · Trade 51m · Physical 46m\nAt 1280 the sections sit in columns; at 390 they stack under the summary. Since/Until narrow the window.\nGrok Bot runs: dd stats --since 2026-10-17 --json → {\"summary\":\"6 picks · 4 drafted · …\"}",
+ "verifyPlan": [
+  "`npm test` green; `test/bigboard.test.ts` names each test with its B-id.",
+  "`npx tsc --noEmit` exit 0.",
+  "`node --experimental-strip-types src/cli/dd.ts selftest` exit 0, printing `DATA_DIR=…` and the lines `happy … drafted`, `policy … failed`, `walkover … drafted`, `close … drafted`.",
+  "`node --experimental-strip-types src/cli/dd.ts doctor` output.",
+  "`sha256sum test/fixtures/bigboard/*`: all seven must equal the sha256 values at the top of this spec. Run `git diff --quiet START -- test/guards.test.ts package.json src/core/lessons.ts src/core/linter.ts src/core/timeline.ts src/core/filmroom.ts src/core/score.ts src/core/reducer.ts src/report src/store src/briefs test/fixtures/phone test/fixtures/timeline test/fixtures/lessons test/fixtures/replay test/fixtures/linter src/ui/styles.css src/ui/timeline.css src/ui/lessons.css src/ui/replay.css src/ui/linter.css src/ui/timeline.js src/ui/lessons.js src/ui/replay.js src/ui/linter.js && echo untouched`. Paste `git diff START -- src/server/http.ts` (static files line + GET handler only), `git diff START -- src/cli/dd.ts` (stats hunk only), and `git diff START -- test/replay.test.ts test/replay.pooled.test.ts test/linter.test.ts test/linter.pooled.test.ts` (exactly the seven sanctioned lines).",
+  "Verify skill (update first, then execute once):",
+  "Safety fact (blast-radius, prove at certainty 4 = ran it): **\"No pick log (real, hostile, skipped, or excluded) and no sequence of opening the stats view, changing the window, or following its links can make the War Room request anything off-origin, render log text as markup, draw an `href` from anything but a valid pick id, or store anything in `localStorage`, `sessionStorage`, cookies, or `history`.\"** Prove it with a script or test that paints `hostile.jsonl` stats (plus a hand-made `skipped` row and trade row whose `pickId` is `p-20261018-77\"><img src=x>`) through `draftDayBigBoard` with a DOM harness, asserts no `img`/`script`/`iframe`/`svg`/`on*`, every `href` is `#/`, `#/stats…` or `#/picks/p-YYYYMMDD-NN`, and no storage access. Paste the `offOrigin` field from the VERIFY 6 probe lines. Paste the output.",
+  "Stack probe: `git merge-base --is-ancestor START HEAD && echo on-stack`. Then `git fetch origin dd/p6-linter && git rev-parse FETCH_HEAD`. If that is not `START`, run `git merge-tree --write-tree --name-only HEAD FETCH_HEAD` and paste the result (conflicts should be at most `docs/DECISIONS.tsv`); otherwise write `START_REF unchanged`. If this git is older than 2.38, use a scratch worktree: `git merge --no-commit --no-ff FETCH_HEAD; git diff --name-only --diff-filter=U; git merge --abort`.",
+  "`git diff --name-only START...HEAD` pasted; every path must be allowed by the touch map (the closed-list lines and the grafter's three sanctioned kinds of path included)."
+ ],
+ "safetyFact": "No pick log (real, hostile, skipped, or excluded) and no sequence of opening the stats view, changing the window, or following its links can make the War Room request anything off-origin, render log text as markup, draw an `href` from anything but a valid pick id, or store anything in `localStorage`, `sessionStorage`, cookies, or `history`.",
+ "angles": [
+  "Stat ledger: start from the numbers. src/core/bigboard.ts is one registry of metric rows (which logs count, angles, slots, trades, verify, stages, summary), each a pure fold over reduce() / timeline() output, typed with satisfies so a new metric fails tsc until it has its text line and its DOM container. Thin dd stats and GET /api/stats, and a plain panel that paints the JSON with the binding DOM names. Table-driven tests run every expected.json row through expectedFor. A reviewer should be able to tick the registry against the spec's stats-rule table row by row, with the fewest lines outside bigboard.ts.",
+  "Scoreboard: start from Boyd at the ballpark with his phone. The view reads like a stadium scoreboard: the summary as a big headline, then three leader tiles above the fold at 390 (best angle by rate with its record, trades per pick, first-try verify), then the full sections. Bars are meter elements or CSS widths, never SVG or canvas. Tokens only, both schemes, transitions only inside @media (prefers-reduced-motion: no-preference), safe-area aware. Paused on the 390 dark screenshot, a stranger can say which angle wins most, the trades per pick and the first-try verify rate within five seconds; the 1280 light screenshot works as a desk view.",
+  "Box score: start from the tables. Each section is a real accessible table at 1280 (caption, th scope), read like a baseball box score: angles x W, entries, walkovers, rate; slots; trades by pick; stage medians with totals. At 600 px and below the same DOM reflows to labeled stacked rows (CSS only, captions from data-label, Pick 4's card-stack pattern). VoiceOver order: summary, window, angles, slots, trades, verify, stages, skipped. No sideways scroll at 390, no cell or link under 44x44 at 1280, binding DOM intact on tr rows."
+ ],
+ "forbidden": [
+  "Draft PRs only. Never mark a PR ready for review, never merge, never enable auto-merge, never deploy or publish anything.",
+  "Candidates open **no** pull request at all (push your branch only). If your environment opens one automatically, it must be a draft with base `dd/p6-linter`, and say so in your report.",
+  "Touch only `BoydVC/draft-day`. Nothing KPD, kpdlawgroup, or debt-collection related, in code, fixtures, tests or examples.",
+  "Do not push to `main`, `dd/scaffold`, `dd/p1-*`, `dd/p2-*`, `dd/p3-*`, `dd/p4-*`, `dd/p5-*` or `dd/p6-*`, and do not force-push.",
+  "Do not edit a file the touch map marks do-not-touch, and do not edit any line of the four closed-list files beyond the sanctioned seven.",
+  "No runtime dependencies, no network code (the A15 guard in `test/guards.test.ts` stays as is), no secrets, no LLM calls, no web fonts or other-origin assets, no `localStorage`/`sessionStorage`/cookies/`history` writes."
+ ]
+}

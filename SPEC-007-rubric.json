@@ -1,0 +1,21 @@
+{
+  "pick": "Pick 6: Scouting Report linter",
+  "spec": "SPEC-007-scouting-linter.md",
+  "rubric": [
+    { "id": "lint", "name": "Lint fidelity on fixtures", "weight": 3 },
+    { "id": "ears", "name": "EARS coverage binding", "weight": 3 },
+    { "id": "angles", "name": "Angle distinctness", "weight": 2 },
+    { "id": "screen", "name": "Linter panel screens", "weight": 3 },
+    { "id": "safety", "name": "Untrusted report text safety", "weight": 2 },
+    { "id": "stack", "name": "Clean stack, small diff", "weight": 2 }
+  ],
+  "candidates": {
+    "c1": { "branch": "dd/p6-linter-a", "angle": "Rule ledger" },
+    "c2": { "branch": "dd/p6-linter-b", "angle": "Scout checklist" },
+    "c3": { "branch": "dd/p6-linter-c", "angle": "Coverage matrix" }
+  },
+  "labels": {
+    "pass1": { "A": "c1", "B": "c2", "C": "c3" },
+    "pass2": { "A": "c3", "B": "c2", "C": "c1" }
+  }
+}

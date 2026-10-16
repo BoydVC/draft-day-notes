@@ -1,0 +1,25 @@
+
+Pass 1  (judge picked c1; board winner c1)
+  c1·C  rank 1  gates pass  cross 18/18  weighted 4.00  diff +3501 -18 41f
+  c2·A  rank 2  gates pass  cross 18/18  weighted 4.00  diff +3575 -18 41f
+  c3·B  rank 3  gates pass  cross 18/18  weighted 4.00  diff +3670 -18 41f
+
+Pass 2  (judge picked c1; board winner c1)
+  c1·A  rank 1  gates pass  cross 18/18  weighted 4.00  diff +3501 -18 41f
+  c2·C  rank 2  gates pass  cross 18/18  weighted 4.00  diff +3575 -18 41f
+  c3·B  rank 3  gates pass  cross 18/18  weighted 3.73  diff +3670 -18 41f
+
+{
+  "base": "c1",
+  "runnerUps": [
+    "c2",
+    "c3"
+  ],
+  "closeCall": true,
+  "swap": "consistent",
+  "swapConsistent": true,
+  "tieRule": null,
+  "unstable": [],
+  "judgeDisagrees": false,
+  "needSecondPass": false
+}

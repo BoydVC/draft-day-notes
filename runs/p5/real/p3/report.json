@@ -1,0 +1,169 @@
+{
+ "restatement": "Give Draft Day a gardener. Turn every pick's event log into findings: what judges and verifiers kept flagging (failed hard gates, low criterion scores, cards that could not be resolved, NOT_VERIFIED and INCONCLUSIVE verdicts) plus the free-text lessons Boyd records. Group findings by what went wrong. Call a group a lesson only when it repeated across at least two picks. For each lesson, propose exactly one engine change at the highest level of Boyd's correction order (architecture > check > skill > human review), and list the past events that change must fail on.",
+ "acceptance": [
+  {
+   "id": "L1",
+   "when": "gardener() runs on the sample week with no window",
+   "shall": "return exactly the seven lessons in the expected table, in that order, each with that rank, key, level, stage, picks, pickCount and count; the six one-offs in the listed order with rank: null and proposal: null; picks 5, findings 27, skipped [], and summary 7 lessons from 5 picks · 27 findings · 6 one-offs."
+  },
+  {
+   "id": "L2",
+   "when": "gardener() runs on the sample week",
+   "shall": "give each lesson the proposal from the proposal table, with level, where and the exact check string with {s} filled, and mustFailOn equal to the expected table's receipts in that order."
+  },
+  {
+   "id": "L3",
+   "when": "findings are extracted",
+   "shall": "follow the findings table and pin the finding details listed under \"The sample week\" (the gate:journey tuples, the score:tests cands, both names lists, the unresolved-label and bad-criterion details, firstAt/lastAt), and SHALL make no finding from a VERIFIED verdict, a score of 2 or more, a missing score, or any other event type."
+  },
+  {
+   "id": "L4",
+   "when": "a judge card's label is looked up",
+   "shall": "follow rule K5, so that (a) for every sample pick where reduce(events).judgement is not null, each judge-kind finding's cand equals judgement.passes.find(p => p.pass === finding.pass).labels[finding.label] ?? null; (b) p-20261014-01's empty label map leaves all three cards unresolved; (c) with every pass field removed from p-20261012-01's judge_launched and judgement_recorded payloads, its five judge-kind findings keep the same [key, seq, pass, label, cand]; and (d) with its two judge_launched events removed, the pick gives 0 lessons from 1 pick · 13 findings · 5 one-offs with judge:unresolved-label 6 and does not throw."
+  },
+  {
+   "id": "L5",
+   "when": "a key shows up in only one pick",
+   "shall": "list it as a one-off however many findings it has, and WHEN the same key shows up in a second pick THE SYSTEM SHALL promote it to a lesson. Checked on p-20261014-01 alone (0 lessons from 1 pick · 8 findings · 5 one-offs) and with a copy recast as p-20261014-02 (5 lessons from 2 picks · 16 findings · 0 one-offs, ranks judge:unresolved-label 2 picks/6, gate:tests 2/4, score:warroom 2/2, not_verified:live-ui-verified 2/2, lesson:film room 2/2)."
+  },
+  {
+   "id": "L6",
+   "when": "lesson topics are grouped",
+   "shall": "apply rule K6: three crafted picks with topics (Film Room, film-room), ( FILM_room , missing, \"\"), and (general, 70 As + tail) give lesson:film room (2 picks, 3), lesson:general (2 picks, 3), and a one-off whose key is lesson: + 60 as."
+  },
+  {
+   "id": "L7",
+   "when": "lessons are ranked",
+   "shall": "apply rule R3 with CORRECTION_ORDER equal to [\"architecture\", \"check\", \"skill\", \"review\"], so that adding a sixth pick with one draft lesson makes lesson:draft 3 picks/3 findings and it still ranks 6th, after every architecture, check and skill lesson."
+  },
+  {
+   "id": "L8",
+   "when": "a window is given",
+   "shall": "apply rules K2-K3: since 2026-10-12 until 2026-10-14 gives the windowed report listed under \"The sample week\"; since 2026-10-11 until 2026-10-16 equals the no-window report except window; and lessonWindow returns the exact errors for 2026-02-30, 2026-1-01, yesterday (as since), 2026-13-01 (as until), equal days, and since after until."
+  },
+  {
+   "id": "L9",
+   "when": "a log cannot be trusted",
+   "shall": "skip it per rule K1 without throwing: {pickId: \"../etc\"}"
+  },
+  {
+   "id": "L10",
+   "when": "the logs or the events inside a log are shuffled",
+   "shall": "return a deep-equal report (rule K4)."
+  },
+  {
+   "id": "L11",
+   "when": "dd lessons --data <week> runs",
+   "shall": "print exactly the 36 lines above. WHEN it runs with --json THE SYSTEM SHALL print the same report as gardener(loadLogs) would and as L12 returns. WHEN --since or --until is bad THE SYSTEM SHALL exit 2 with error: since must be YYYY-MM-DD (and so on) on stderr, including a bare --since with no value (pass the raw flag to lessonWindow). dd help SHALL list dd lessons [--since YYYY-MM-DD] [--until YYYY-MM-DD]."
+  },
+  {
+   "id": "L12",
+   "when": "GET /api/lessons is called on a data dir holding the week",
+   "shall": "return 200 and a body deep-equal to dd lessons --json on that dir, with and without ?since=2026-10-12&until=2026-10-14; SHALL return 400 {\"error\":\"since must be before until\"} for ?since=2026-10-16&until=2026-10-12; and SHALL serve /lessons.js and /lessons.css with 200."
+  },
+  {
+   "id": "L13",
+   "when": "the data dir has no picks",
+   "shall": "print, for dd lessons --json, exactly {\"window\":{\"since\":null,\"until\":null},\"picks\":0,\"findings\":0,\"lessons\":[],\"oneOffs\":[],\"skipped\":[],\"summary\":\"0 lessons from 0 picks · 0 findings · 0 one-offs\"} (deep-equal), and only the summary line in text mode; test/commands.test.ts asserts that object in place of { lessons: [] }."
+  },
+  {
+   "id": "L14",
+   "when": "payload text contains control characters",
+   "shall": "keep them out of text mode: two crafted picks with topics \\u001b[2Jwipe and \\u001b[2jWIPE\\u0007 make one-offs whose lessonsText lines read - lesson:?[2jwipe p-… 1 finding and - lesson:?[2jwipe? p-… 1 finding, and no output character falls in U+0000-U+001F or U+007F-U+009F except the newlines between lines. JSON output keeps them escaped."
+  },
+  {
+   "id": "L15",
+   "when": "#/lessons is open",
+   "shall": "show a Big Board link and a region named Locker Room containing: the summary sentence; a form named Window with date inputs labeled Since and Until (prefilled from the route) and a button Show that sets the hash to #/lessons plus the filled parts; a list named Lessons with one item per lesson in rank order, whose heading is <rank>. <key>, followed by a chip whose text is the level, the line <pickCount> picks · <count> findings (plus · <stage> when set), the check sentence, where <where>, and a list named Receipts with one item per finding: a link named <pickId> #<seq> to #/picks/<pickId>, then pass <n> and the cand (or label <L> when unresolved) for judge kinds, then the detail text; and a list named One-offs with one item per one-off reading <key> · <count> finding(s) with its own Receipts list. With no findings the region says No findings yet. The Big Board page shows a link named Locker Room to #/lessons outside the Big Board region."
+  },
+  {
+   "id": "L16",
+   "when": "the windowed sample is open at 390×844",
+   "shall": "not scroll horizontally at page level (document.documentElement.scrollWidth <= 390); long keys, where paths and details wrap."
+  },
+  {
+   "id": "L17",
+   "when": "dd record appends a lesson_recorded while #/lessons is open",
+   "shall": "show the change within 2 seconds without reload: topic Locker live on a fresh pick appears under One-offs, then topic LOCKER_live on a second fresh pick moves lesson:locker live into Lessons with 2 picks. WHEN an update arrives while focus is inside the Window form THE SYSTEM SHALL leave the page as it is."
+  },
+  {
+   "id": "L18",
+   "when": "payloads carry markup or script text",
+   "shall": "render it as literal text. Running src/ui/lessons.js in node:vm with a recording el on the sample report, and on a report with hostile topics, details and a non-pick-id pickId, creates no img, script or iframe node, sets no on* attribute, gives every string child as text, and sets every href to #/picks/<id> with <id> matching ^p-\\d{8}-\\d{2}$ (any other id renders as text, no link). src/ui/ SHALL contain no innerHTML, outerHTML, insertAdjacentHTML, document.write, eval( or new Function."
+  },
+  {
+   "id": "L19",
+   "when": "gardener() runs on 500 logs (the week copied 100 times: for copy *k* = 0..99 and the week's *j*-th pick in id order, *j* = 1..5, the pick id is p-<YYYYMMDD of 2026-01-01 plus k days>-0<j> and its pick_created.payload.id is rewritten to match; every other event is unchanged)",
+   "shall": "return in under 1000 ms with summary 13 lessons from 500 picks · 2700 findings · 0 one-offs."
+  },
+  {
+   "id": "L20",
+   "when": "npm test runs after this change",
+   "shall": "still pass every earlier test (SPEC 001 A1-A15, Picks 1-2's suites, the import boundary, the network grep) with test/guards.test.ts byte-identical, zero runtime dependencies, dd selftest printing its happy, policy, walkover and close lines unchanged, and git diff --name-only against 60b1625 inside the touch map."
+  }
+ ],
+ "rubric": [
+  {
+   "id": "facts",
+   "name": "Lesson facts",
+   "weight": 3,
+   "howToGrade": "Run the pooled cross-tests for L1-L11, L13, L14, L19. 4 = all pass. 3 = one edge case wrong (one skipped-log reason, topic cut, window equality, one-off order). 2 = one rule family wrong (label lookup, repeat rule, correction order, or receipts). 0 = the sample's seven lessons, their order or the summary line are wrong."
+  },
+  {
+   "id": "truth",
+   "name": "One source of truth",
+   "weight": 3,
+   "howToGrade": "Grouping, ranking, levels and proposals exist only in src/core/lessons.ts, with one proposal table, and the levels come only from CORRECTION_ORDER. Stage names come only from stageLabel: no \"Film Room\" or \"Physical\" literal in lessons.ts. Rubric ids come from reduce().report. L4 passes (label lookup equals the reducer's). Window parsing is only lessonWindow, used by both the CLI and the API. Log reading is only loadLogs, used by both. The old topic-count body of lessons() is gone. In the lines this diff adds to src/ui/*.js, from git diff -U0 60b1625...<sha> \\| grep '^+', look for .sort(, .filter(, .reduce(, Date, length-based counting and pickCount arithmetic; rendering a provided number is fine. Adding a dummy member to FindingKind in a scratch worktree makes npx tsc --noEmit fail."
+  },
+  {
+   "id": "locker",
+   "name": "Locker Room legibility",
+   "weight": 3,
+   "howToGrade": "Drive the verify skill on the sample week (#/lessons?since=2026-10-11&until=2026-10-16) at 1280×800 and 390×844. Within 5 seconds can you say what to fix first, at which level and in which file, how many picks it hit, and open its first receipt into that pick's page? The accessible names from L15 are present. No page-level horizontal scroll at 390 (L16). The live update lands within 2 s (L17). The Locker Room link is on the Big Board page and survives typing in New pick. Screenshots are required for a 3 or 4."
+  },
+  {
+   "id": "safety",
+   "name": "Untrusted text safety",
+   "weight": 2,
+   "howToGrade": "Re-run the safety-fact proof and L14/L18 by hand with your own hostile values: a topic of <img src=x onerror=alert(1)>, a topic carrying \\u001b[2J and \\u0007, a log directory named like a pick whose pick_created.payload.id names another pick, and a ../ pick id passed straight to gardener(). Grep src/ui for innerHTML, outerHTML, insertAdjacentHTML, document.write, eval(, new Function. Every href in the Locker Room matches ^#/picks/p-\\d{8}-\\d{2}$. One hostile value that renders as markup, a stray link, a control character in text mode, or a finding attributed to the wrong pick = 0."
+  },
+  {
+   "id": "tests",
+   "name": "Tests drive the entry points",
+   "weight": 2,
+   "howToGrade": "Tests drive src/core/index.ts, src/cli/dd.ts, src/server/http.ts or the draftDayLessons vm harness only. Expected values are the spec's literals (the 36 lines, 7 lessons from 5 picks · 27 findings · 6 one-offs, the receipts), not values captured from running the code. Test names carry L-ids. Break one rule by hand (count pickCount from findings instead of distinct picks, or sort lessons by count before level) and at least one candidate test must fail."
+  },
+  {
+   "id": "stack",
+   "name": "Clean stack, small diff",
+   "weight": 2,
+   "howToGrade": "git diff --name-only 60b1625518f61de576205c73318afd54c3384798...<sha> stays inside the touch map; any edit to a do-not-touch file caps this at 1. git merge-base --is-ancestor 60b1625518f61de576205c73318afd54c3384798 <sha> holds. If origin/dd/p2-timeline has moved past 60b1625, git merge-tree --write-tree --name-only <sha> origin/dd/p2-timeline conflicts at most in src/server/http.ts, control.sh and docs/DECISIONS.tsv. A conflict caused by a Pick 2 fix commit editing a Pick 3 hunk is noted, not penalized. Compare diff.added + diff.removed with the others. Selftest still prints its happy, policy, walkover and close lines unchanged. Zero runtime deps."
+  }
+ ],
+ "designSketch": "Sunday, Boyd (or Grok Bot's weekly pass) runs:\n  dd lessons --since 2026-10-11 --until 2026-10-18\n  → 7 lessons from 5 picks · 27 findings · 6 one-offs\n    1. architecture  inconclusive:verifier-blocked  2 picks  2 findings\n       Make control.sh doctor fail before any drive when ...\n       where .cursor/skills/verify-draft-day/helpers/control.sh\n       must fail on p-20261012-01#16, p-20261013-01#16\n\nOn his phone: War Room → Locker Room (#/lessons?since=2026-10-11&until=2026-10-16)\nLocker Room        7 lessons from 5 picks · 27 findings · 6 one-offs\nWindow             Since [2026-10-11]  Until [2026-10-16]  [Show]\nLessons\n  1. inconclusive:verifier-blocked     [architecture]   2 picks · 2 findings · Physical\n     Make control.sh doctor fail before any drive when the verifier would end verifier-blocked, ...\n     where .cursor/skills/verify-draft-day/helpers/control.sh\n     Receipts\n       p-20261012-01 #16   control.sh launch: port 45920 already in use\n       p-20261013-01 #16   Chrome did not start in the verifier VM; no screenshot taken\n  2. gate:journey                       [check]          2 picks · 4 findings · Film Room\n     ...\nOne-offs\n  judge:unresolved-label · 3 findings     Receipts: p-20261014-01 #11 pass 1 label A ...",
+ "verifyPlan": [
+  "npm test green; test/lessons.test.ts names each test with its L-id.",
+  "npx tsc --noEmit exit 0.",
+  "node --experimental-strip-types src/cli/dd.ts selftest exit 0, printing DATA_DIR=… and the lines happy … drafted, policy … failed, walkover … drafted, close … drafted.",
+  "node --experimental-strip-types src/cli/dd.ts doctor output.",
+  "The week through the CLI: split it (the command under \"The sample week\"), then node --experimental-strip-types src/cli/dd.ts lessons --data $D (paste all 36 lines), … lessons --data $D --since 2026-10-12 --until 2026-10-14 (paste), … lessons --data $D --since 2026-10-16 --until 2026-10-12; echo exit $? (must be exit 2), and sha256sum test/fixtures/lessons/lessons-week.jsonl (must equal the sha256 ",
+  "Verify skill (update first, then execute once, per pstack create-verification-skill step 4 and maintain-verification-skill):",
+  "Safety fact (blast-radius, prove at certainty 4 = ran it): \"No event payload can make the Locker Room render a link to anything but #/picks/<id> for an id matching ^p-\\d{8}-\\d{2}$, no payload text is ever parsed as HTML, no log can put findings under another pick's id, and dd lessons never writes a C0 or C1 control character from a payload to the terminal.\" Prove it in a scratch data dir with a sc",
+  "Stack probe: git merge-base --is-ancestor 60b1625518f61de576205c73318afd54c3384798 HEAD && echo on-stack. Then git fetch origin dd/p2-timeline && git rev-parse FETCH_HEAD. If that is not 60b1625…, git merge-tree --write-tree --name-only HEAD FETCH_HEAD and paste the result (conflicts should be at most src/server/http.ts, the verify skill's control.sh and docs/DECISIONS.tsv); otherwise write dd/p2-",
+  "git diff --name-only 60b1625518f61de576205c73318afd54c3384798...HEAD pasted; every path must be allowed by the touch map."
+ ],
+ "safetyFact": "No event payload can make the Locker Room render a link to anything but #/picks/<id> for an id matching ^p-\\d{8}-\\d{2}$, no payload text is ever parsed as HTML, no log can put findings under another pick's id, and dd lessons never writes a C0 or C1 control character from a payload to the terminal.",
+ "angles": [
+  "Kind registry: build src/core/lessons.ts around one Record<FindingKind, KindRule> registry checked with satisfies, so a new finding kind fails tsc until its row is complete; each row owns its event type, its payload-to-findings extractor, its level, stage status, where and check template; one pass over each seq-ordered log feeds a generic group-and-rank step; render the API's lists with the least DOM that meets L15.",
+  "Flat findings first: two explicit stages; stage 1 projects every log into one flat, sorted Finding[] (also exported from core as an extra findings(logs, window) function), stage 2 only sees findings and groups them, applies the repeat rule, ranks and attaches proposals; tests pin each stage on its own; in the Locker Room show each group's findings as a compact receipts table (pick, seq, pass, cand, detail).",
+  "Weekly to-do list: start from Boyd's Sunday-morning phone check and features/lessons.md; the Locker Room reads as an ordered list of things to fix, with a prominent first item (rank 1, its level chip, where, and its first receipt link at the top) and short lines for the rest; receipts sit behind native <details>; a Clear link next to Show drops the window (no date math in the browser); be strongest on plain sentences, accessible names and the 390 px layout, and keep the core as simple as the rules allow."
+ ],
+ "forbidden": [
+  "Draft PRs only. Never mark a PR ready for review, never merge, never enable auto-merge, never deploy or publish anything.",
+  "Candidates open no pull request at all (push your branch only). If your environment opens one automatically, it must be a draft with base dd/p2-timeline, and say so in your report.",
+  "Touch only BoydVC/draft-day. Nothing KPD, kpdlawgroup, or debt-collection related, in code, fixtures, proposals or examples.",
+  "Do not push to main, dd/scaffold, dd/p1-film-room* or dd/p2-timeline*, and do not force-push.",
+  "Do not edit a file the touch map marks do-not-touch. A proposal that names a file is text, not permission to edit it.",
+  "No runtime dependencies, no network code (the A15 guard in test/guards.test.ts stays as is), no secrets, no LLM calls. Links are strings in the UI; nothing in src/ requests them."
+ ]
+}

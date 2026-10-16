@@ -1,0 +1,703 @@
+{
+  "window": {
+    "since": null,
+    "until": null
+  },
+  "picks": 5,
+  "findings": 27,
+  "lessons": [
+    {
+      "rank": 1,
+      "key": "inconclusive:verifier-blocked",
+      "kind": "inconclusive",
+      "subject": "verifier-blocked",
+      "level": "architecture",
+      "stage": "Physical",
+      "names": [],
+      "picks": [
+        "p-20261012-01",
+        "p-20261013-01"
+      ],
+      "pickCount": 2,
+      "count": 2,
+      "firstAt": "2026-10-12T16:45:00.000Z",
+      "lastAt": "2026-10-13T14:39:00.000Z",
+      "findings": [
+        {
+          "key": "inconclusive:verifier-blocked",
+          "kind": "inconclusive",
+          "subject": "verifier-blocked",
+          "pickId": "p-20261012-01",
+          "seq": 16,
+          "ts": "2026-10-12T16:45:00.000Z",
+          "cand": null,
+          "label": null,
+          "pass": null,
+          "detail": "control.sh launch: port 45920 already in use"
+        },
+        {
+          "key": "inconclusive:verifier-blocked",
+          "kind": "inconclusive",
+          "subject": "verifier-blocked",
+          "pickId": "p-20261013-01",
+          "seq": 16,
+          "ts": "2026-10-13T14:39:00.000Z",
+          "cand": null,
+          "label": null,
+          "pass": null,
+          "detail": "Chrome did not start in the verifier VM; no screenshot taken"
+        }
+      ],
+      "proposal": {
+        "level": "architecture",
+        "where": ".cursor/skills/verify-draft-day/helpers/control.sh",
+        "check": "Make control.sh doctor fail before any drive when the verifier would end verifier-blocked, so a physical never spends a run on it.",
+        "mustFailOn": [
+          {
+            "pickId": "p-20261012-01",
+            "seq": 16
+          },
+          {
+            "pickId": "p-20261013-01",
+            "seq": 16
+          }
+        ]
+      }
+    },
+    {
+      "rank": 2,
+      "key": "gate:journey",
+      "kind": "gate",
+      "subject": "journey",
+      "level": "check",
+      "stage": "Film Room",
+      "names": [],
+      "picks": [
+        "p-20261011-01",
+        "p-20261012-01"
+      ],
+      "pickCount": 2,
+      "count": 4,
+      "firstAt": "2026-10-11T14:50:00.000Z",
+      "lastAt": "2026-10-12T15:22:00.000Z",
+      "findings": [
+        {
+          "key": "gate:journey",
+          "kind": "gate",
+          "subject": "journey",
+          "pickId": "p-20261011-01",
+          "seq": 11,
+          "ts": "2026-10-11T14:50:00.000Z",
+          "cand": "c1",
+          "label": "A",
+          "pass": 1,
+          "detail": ""
+        },
+        {
+          "key": "gate:journey",
+          "kind": "gate",
+          "subject": "journey",
+          "pickId": "p-20261012-01",
+          "seq": 10,
+          "ts": "2026-10-12T14:45:00.000Z",
+          "cand": "c2",
+          "label": "A",
+          "pass": 1,
+          "detail": ""
+        },
+        {
+          "key": "gate:journey",
+          "kind": "gate",
+          "subject": "journey",
+          "pickId": "p-20261012-01",
+          "seq": 10,
+          "ts": "2026-10-12T14:45:00.000Z",
+          "cand": "c3",
+          "label": "B",
+          "pass": 1,
+          "detail": ""
+        },
+        {
+          "key": "gate:journey",
+          "kind": "gate",
+          "subject": "journey",
+          "pickId": "p-20261012-01",
+          "seq": 12,
+          "ts": "2026-10-12T15:22:00.000Z",
+          "cand": "c2",
+          "label": "C",
+          "pass": 2,
+          "detail": ""
+        }
+      ],
+      "proposal": {
+        "level": "check",
+        "where": "src/report/parse.ts parseCandidateReport",
+        "check": "Refuse a candidate_finished report at record time unless it proves the journey gate passed, so the Film Room never scores a card that fails it.",
+        "mustFailOn": [
+          {
+            "pickId": "p-20261011-01",
+            "seq": 11
+          },
+          {
+            "pickId": "p-20261012-01",
+            "seq": 10
+          },
+          {
+            "pickId": "p-20261012-01",
+            "seq": 12
+          }
+        ]
+      }
+    },
+    {
+      "rank": 3,
+      "key": "score:tests",
+      "kind": "score",
+      "subject": "tests",
+      "level": "check",
+      "stage": "Film Room",
+      "names": [
+        "Tests prove behavior"
+      ],
+      "picks": [
+        "p-20261011-01",
+        "p-20261012-01"
+      ],
+      "pickCount": 2,
+      "count": 4,
+      "firstAt": "2026-10-11T14:50:00.000Z",
+      "lastAt": "2026-10-12T15:22:00.000Z",
+      "findings": [
+        {
+          "key": "score:tests",
+          "kind": "score",
+          "subject": "tests",
+          "pickId": "p-20261011-01",
+          "seq": 11,
+          "ts": "2026-10-11T14:50:00.000Z",
+          "cand": "c1",
+          "label": "A",
+          "pass": 1,
+          "detail": "test/legend.test.ts asserts a private helper, not the board"
+        },
+        {
+          "key": "score:tests",
+          "kind": "score",
+          "subject": "tests",
+          "pickId": "p-20261011-01",
+          "seq": 11,
+          "ts": "2026-10-11T14:50:00.000Z",
+          "cand": "c3",
+          "label": "C",
+          "pass": 1,
+          "detail": "no new tests; npm test only runs the SPEC 001 suites"
+        },
+        {
+          "key": "score:tests",
+          "kind": "score",
+          "subject": "tests",
+          "pickId": "p-20261012-01",
+          "seq": 10,
+          "ts": "2026-10-12T14:45:00.000Z",
+          "cand": "c1",
+          "label": "C",
+          "pass": 1,
+          "detail": "tests snapshot the HTML string"
+        },
+        {
+          "key": "score:tests",
+          "kind": "score",
+          "subject": "tests",
+          "pickId": "p-20261012-01",
+          "seq": 12,
+          "ts": "2026-10-12T15:22:00.000Z",
+          "cand": "c1",
+          "label": "A",
+          "pass": 2,
+          "detail": "same snapshot-only tests in the reversed pass"
+        }
+      ],
+      "proposal": {
+        "level": "check",
+        "where": "src/briefs/scout.md",
+        "check": "Write criterion tests into every scouting report as an ACCEPTANCE line, so the judge's pooled cross-test fails the mistake instead of the rubric scoring it.",
+        "mustFailOn": [
+          {
+            "pickId": "p-20261011-01",
+            "seq": 11
+          },
+          {
+            "pickId": "p-20261012-01",
+            "seq": 10
+          },
+          {
+            "pickId": "p-20261012-01",
+            "seq": 12
+          }
+        ]
+      }
+    },
+    {
+      "rank": 4,
+      "key": "score:warroom",
+      "kind": "score",
+      "subject": "warroom",
+      "level": "check",
+      "stage": "Film Room",
+      "names": [
+        "Board legibility",
+        "Scorecard legibility"
+      ],
+      "picks": [
+        "p-20261011-01",
+        "p-20261014-01"
+      ],
+      "pickCount": 2,
+      "count": 2,
+      "firstAt": "2026-10-11T14:50:00.000Z",
+      "lastAt": "2026-10-14T14:50:00.000Z",
+      "findings": [
+        {
+          "key": "score:warroom",
+          "kind": "score",
+          "subject": "warroom",
+          "pickId": "p-20261011-01",
+          "seq": 11,
+          "ts": "2026-10-11T14:50:00.000Z",
+          "cand": "c3",
+          "label": "C",
+          "pass": 1,
+          "detail": "legend chips overlap the status column at 390 px"
+        },
+        {
+          "key": "score:warroom",
+          "kind": "score",
+          "subject": "warroom",
+          "pickId": "p-20261014-01",
+          "seq": 11,
+          "ts": "2026-10-14T14:50:00.000Z",
+          "cand": null,
+          "label": "A",
+          "pass": 1,
+          "detail": "reason sentence cut off at 390 px"
+        }
+      ],
+      "proposal": {
+        "level": "check",
+        "where": "src/briefs/scout.md",
+        "check": "Write criterion warroom into every scouting report as an ACCEPTANCE line, so the judge's pooled cross-test fails the mistake instead of the rubric scoring it.",
+        "mustFailOn": [
+          {
+            "pickId": "p-20261011-01",
+            "seq": 11
+          },
+          {
+            "pickId": "p-20261014-01",
+            "seq": 11
+          }
+        ]
+      }
+    },
+    {
+      "rank": 5,
+      "key": "not_verified:live-ui-verified",
+      "kind": "not_verified",
+      "subject": "live-ui-verified",
+      "level": "skill",
+      "stage": "Physical",
+      "names": [],
+      "picks": [
+        "p-20261011-01",
+        "p-20261014-01"
+      ],
+      "pickCount": 2,
+      "count": 2,
+      "firstAt": "2026-10-11T16:13:00.000Z",
+      "lastAt": "2026-10-14T16:13:00.000Z",
+      "findings": [
+        {
+          "key": "not_verified:live-ui-verified",
+          "kind": "not_verified",
+          "subject": "live-ui-verified",
+          "pickId": "p-20261011-01",
+          "seq": 15,
+          "ts": "2026-10-11T16:13:00.000Z",
+          "cand": null,
+          "label": null,
+          "pass": null,
+          "detail": "Legend hid the failed chip on the 390 px board · big-board.png"
+        },
+        {
+          "key": "not_verified:live-ui-verified",
+          "kind": "not_verified",
+          "subject": "live-ui-verified",
+          "pickId": "p-20261014-01",
+          "seq": 15,
+          "ts": "2026-10-14T16:13:00.000Z",
+          "cand": null,
+          "label": null,
+          "pass": null,
+          "detail": "<img src=x onerror=alert(1)> rendered as text, but the swap chip overflowed at 390 px"
+        }
+      ],
+      "proposal": {
+        "level": "skill",
+        "where": ".cursor/skills/verify-draft-day/features/",
+        "check": "Add the journey the physical failed to the verify skill's feature map, so candidates drive it in their own VERIFY before they report.",
+        "mustFailOn": [
+          {
+            "pickId": "p-20261011-01",
+            "seq": 15
+          },
+          {
+            "pickId": "p-20261014-01",
+            "seq": 15
+          }
+        ]
+      }
+    },
+    {
+      "rank": 6,
+      "key": "lesson:draft",
+      "kind": "lesson",
+      "subject": "draft",
+      "level": "review",
+      "stage": null,
+      "names": [],
+      "picks": [
+        "p-20261011-01",
+        "p-20261012-01"
+      ],
+      "pickCount": 2,
+      "count": 2,
+      "firstAt": "2026-10-11T16:49:00.000Z",
+      "lastAt": "2026-10-12T17:21:00.000Z",
+      "findings": [
+        {
+          "key": "lesson:draft",
+          "kind": "lesson",
+          "subject": "draft",
+          "pickId": "p-20261011-01",
+          "seq": 19,
+          "ts": "2026-10-11T16:49:00.000Z",
+          "cand": null,
+          "label": null,
+          "pass": null,
+          "detail": "Grafter opened PR #3 ready for review; Grok Bot flipped it back to draft."
+        },
+        {
+          "key": "lesson:draft",
+          "kind": "lesson",
+          "subject": "draft",
+          "pickId": "p-20261012-01",
+          "seq": 20,
+          "ts": "2026-10-12T17:21:00.000Z",
+          "cand": null,
+          "label": null,
+          "pass": null,
+          "detail": "Physical agent opened a second, non-draft PR #6; closed it and kept #5."
+        }
+      ],
+      "proposal": {
+        "level": "review",
+        "where": "Boyd",
+        "check": "Boyd names the engine check for \"draft\"; until then it stays a human review item.",
+        "mustFailOn": [
+          {
+            "pickId": "p-20261011-01",
+            "seq": 19
+          },
+          {
+            "pickId": "p-20261012-01",
+            "seq": 20
+          }
+        ]
+      }
+    },
+    {
+      "rank": 7,
+      "key": "lesson:film room",
+      "kind": "lesson",
+      "subject": "film room",
+      "level": "review",
+      "stage": null,
+      "names": [],
+      "picks": [
+        "p-20261013-01",
+        "p-20261014-01"
+      ],
+      "pickCount": 2,
+      "count": 2,
+      "firstAt": "2026-10-13T14:45:00.000Z",
+      "lastAt": "2026-10-14T16:49:00.000Z",
+      "findings": [
+        {
+          "key": "lesson:film room",
+          "kind": "lesson",
+          "subject": "film room",
+          "pickId": "p-20261013-01",
+          "seq": 18,
+          "ts": "2026-10-13T14:45:00.000Z",
+          "cand": null,
+          "label": null,
+          "pass": null,
+          "detail": "Walkover skipped the judge, so nobody ran the pooled tests."
+        },
+        {
+          "key": "lesson:film room",
+          "kind": "lesson",
+          "subject": "film room",
+          "pickId": "p-20261014-01",
+          "seq": 19,
+          "ts": "2026-10-14T16:49:00.000Z",
+          "cand": null,
+          "label": null,
+          "pass": null,
+          "detail": "Judge was launched before the candidates finished, so its label map was empty."
+        }
+      ],
+      "proposal": {
+        "level": "review",
+        "where": "Boyd",
+        "check": "Boyd names the engine check for \"film room\"; until then it stays a human review item.",
+        "mustFailOn": [
+          {
+            "pickId": "p-20261013-01",
+            "seq": 18
+          },
+          {
+            "pickId": "p-20261014-01",
+            "seq": 19
+          }
+        ]
+      }
+    }
+  ],
+  "oneOffs": [
+    {
+      "rank": null,
+      "key": "judge:unresolved-label",
+      "kind": "judge",
+      "subject": "unresolved-label",
+      "level": "check",
+      "stage": "Film Room",
+      "names": [],
+      "picks": [
+        "p-20261014-01"
+      ],
+      "pickCount": 1,
+      "count": 3,
+      "firstAt": "2026-10-14T14:50:00.000Z",
+      "lastAt": "2026-10-14T14:50:00.000Z",
+      "findings": [
+        {
+          "key": "judge:unresolved-label",
+          "kind": "judge",
+          "subject": "unresolved-label",
+          "pickId": "p-20261014-01",
+          "seq": 11,
+          "ts": "2026-10-14T14:50:00.000Z",
+          "cand": null,
+          "label": "A",
+          "pass": 1,
+          "detail": "label A"
+        },
+        {
+          "key": "judge:unresolved-label",
+          "kind": "judge",
+          "subject": "unresolved-label",
+          "pickId": "p-20261014-01",
+          "seq": 11,
+          "ts": "2026-10-14T14:50:00.000Z",
+          "cand": null,
+          "label": "B",
+          "pass": 1,
+          "detail": "label B"
+        },
+        {
+          "key": "judge:unresolved-label",
+          "kind": "judge",
+          "subject": "unresolved-label",
+          "pickId": "p-20261014-01",
+          "seq": 11,
+          "ts": "2026-10-14T14:50:00.000Z",
+          "cand": null,
+          "label": "C",
+          "pass": 1,
+          "detail": "label C"
+        }
+      ],
+      "proposal": null
+    },
+    {
+      "rank": null,
+      "key": "gate:tests",
+      "kind": "gate",
+      "subject": "tests",
+      "level": "check",
+      "stage": "Film Room",
+      "names": [],
+      "picks": [
+        "p-20261014-01"
+      ],
+      "pickCount": 1,
+      "count": 2,
+      "firstAt": "2026-10-14T14:50:00.000Z",
+      "lastAt": "2026-10-14T14:50:00.000Z",
+      "findings": [
+        {
+          "key": "gate:tests",
+          "kind": "gate",
+          "subject": "tests",
+          "pickId": "p-20261014-01",
+          "seq": 11,
+          "ts": "2026-10-14T14:50:00.000Z",
+          "cand": null,
+          "label": "A",
+          "pass": 1,
+          "detail": ""
+        },
+        {
+          "key": "gate:tests",
+          "kind": "gate",
+          "subject": "tests",
+          "pickId": "p-20261014-01",
+          "seq": 11,
+          "ts": "2026-10-14T14:50:00.000Z",
+          "cand": null,
+          "label": "B",
+          "pass": 1,
+          "detail": ""
+        }
+      ],
+      "proposal": null
+    },
+    {
+      "rank": null,
+      "key": "inconclusive:verifier-failed",
+      "kind": "inconclusive",
+      "subject": "verifier-failed",
+      "level": "architecture",
+      "stage": "Physical",
+      "names": [],
+      "picks": [
+        "p-20261015-01"
+      ],
+      "pickCount": 1,
+      "count": 1,
+      "firstAt": "2026-10-15T15:52:00.000Z",
+      "lastAt": "2026-10-15T15:52:00.000Z",
+      "findings": [
+        {
+          "key": "inconclusive:verifier-failed",
+          "kind": "inconclusive",
+          "subject": "verifier-failed",
+          "pickId": "p-20261015-01",
+          "seq": 13,
+          "ts": "2026-10-15T15:52:00.000Z",
+          "cand": null,
+          "label": null,
+          "pass": null,
+          "detail": "verifier crashed after 40 minutes"
+        }
+      ],
+      "proposal": null
+    },
+    {
+      "rank": null,
+      "key": "judge:bad-criterion",
+      "kind": "judge",
+      "subject": "bad-criterion",
+      "level": "check",
+      "stage": "Film Room",
+      "names": [],
+      "picks": [
+        "p-20261015-01"
+      ],
+      "pickCount": 1,
+      "count": 1,
+      "firstAt": "2026-10-15T14:29:00.000Z",
+      "lastAt": "2026-10-15T14:29:00.000Z",
+      "findings": [
+        {
+          "key": "judge:bad-criterion",
+          "kind": "judge",
+          "subject": "bad-criterion",
+          "pickId": "p-20261015-01",
+          "seq": 9,
+          "ts": "2026-10-15T14:29:00.000Z",
+          "cand": "c2",
+          "label": "A",
+          "pass": 1,
+          "detail": "<script>alert(1)</script>"
+        }
+      ],
+      "proposal": null
+    },
+    {
+      "rank": null,
+      "key": "lesson:combine",
+      "kind": "lesson",
+      "subject": "combine",
+      "level": "review",
+      "stage": null,
+      "names": [],
+      "picks": [
+        "p-20261015-01"
+      ],
+      "pickCount": 1,
+      "count": 1,
+      "firstAt": "2026-10-15T16:32:00.000Z",
+      "lastAt": "2026-10-15T16:32:00.000Z",
+      "findings": [
+        {
+          "key": "lesson:combine",
+          "kind": "lesson",
+          "subject": "combine",
+          "pickId": "p-20261015-01",
+          "seq": 18,
+          "ts": "2026-10-15T16:32:00.000Z",
+          "cand": null,
+          "label": null,
+          "pass": null,
+          "detail": "c2 needed npm ci before npm test."
+        }
+      ],
+      "proposal": null
+    },
+    {
+      "rank": null,
+      "key": "lesson:xss",
+      "kind": "lesson",
+      "subject": "xss",
+      "level": "review",
+      "stage": null,
+      "names": [],
+      "picks": [
+        "p-20261015-01"
+      ],
+      "pickCount": 1,
+      "count": 1,
+      "firstAt": "2026-10-15T16:28:00.000Z",
+      "lastAt": "2026-10-15T16:28:00.000Z",
+      "findings": [
+        {
+          "key": "lesson:xss",
+          "kind": "lesson",
+          "subject": "xss",
+          "pickId": "p-20261015-01",
+          "seq": 17,
+          "ts": "2026-10-15T16:28:00.000Z",
+          "cand": null,
+          "label": null,
+          "pass": null,
+          "detail": "<img src=x onerror=alert(1)>"
+        }
+      ],
+      "proposal": null
+    }
+  ],
+  "skipped": [],
+  "summary": "7 lessons from 5 picks · 27 findings · 6 one-offs"
+}

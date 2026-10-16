@@ -1,0 +1,24 @@
+=== P4 ref-overlay vs real dd/p3-lessons-a
+order A then B: conflicts: docs/DECISIONS.tsv 
+order B then A: conflicts: docs/DECISIONS.tsv 
+A changed: .cursor/skills/verify-draft-day/SKILL.md .cursor/skills/verify-draft-day/features/README.md .cursor/skills/verify-draft-day/features/new-pick.md .cursor/skills/verify-draft-day/features/phone.md docs/DECISIONS.tsv src/ui/app.js src/ui/index.html src/ui/styles.css src/ui/timeline.css test/fixtures/phone/cdp-shot.mjs test/fixtures/phone/dom-harness.mjs test/fixtures/phone/probe.js test/phone.test.ts 
+B changed: .cursor/skills/verify-draft-day/SKILL.md .cursor/skills/verify-draft-day/features/README.md .cursor/skills/verify-draft-day/helpers/control.sh docs/DECISIONS.tsv src/server/http.ts src/ui/app.js src/ui/index.html src/ui/lessons.css src/ui/lessons.js 
+shared: .cursor/skills/verify-draft-day/SKILL.md .cursor/skills/verify-draft-day/features/README.md docs/DECISIONS.tsv src/ui/app.js src/ui/index.html 
+mergesim: ok (DECISIONS.tsv at most)
+exit 0
+=== P4 ref-overlay vs real dd/p3-lessons-b
+order A then B: conflicts: docs/DECISIONS.tsv 
+order B then A: conflicts: docs/DECISIONS.tsv 
+A changed: .cursor/skills/verify-draft-day/SKILL.md .cursor/skills/verify-draft-day/features/README.md .cursor/skills/verify-draft-day/features/new-pick.md .cursor/skills/verify-draft-day/features/phone.md docs/DECISIONS.tsv src/ui/app.js src/ui/index.html src/ui/styles.css src/ui/timeline.css test/fixtures/phone/cdp-shot.mjs test/fixtures/phone/dom-harness.mjs test/fixtures/phone/probe.js test/phone.test.ts 
+B changed: .cursor/skills/verify-draft-day/SKILL.md .cursor/skills/verify-draft-day/features/README.md .cursor/skills/verify-draft-day/helpers/control.sh docs/DECISIONS.tsv src/server/http.ts src/ui/app.js src/ui/index.html src/ui/lessons.css src/ui/lessons.js 
+shared: .cursor/skills/verify-draft-day/SKILL.md .cursor/skills/verify-draft-day/features/README.md docs/DECISIONS.tsv src/ui/app.js src/ui/index.html 
+mergesim: ok (DECISIONS.tsv at most)
+exit 0
+=== P4 ref-overlay vs real dd/p3-lessons-c
+order A then B: conflicts: docs/DECISIONS.tsv 
+order B then A: conflicts: docs/DECISIONS.tsv 
+A changed: .cursor/skills/verify-draft-day/SKILL.md .cursor/skills/verify-draft-day/features/README.md .cursor/skills/verify-draft-day/features/new-pick.md .cursor/skills/verify-draft-day/features/phone.md docs/DECISIONS.tsv src/ui/app.js src/ui/index.html src/ui/styles.css src/ui/timeline.css test/fixtures/phone/cdp-shot.mjs test/fixtures/phone/dom-harness.mjs test/fixtures/phone/probe.js test/phone.test.ts 
+B changed: .cursor/skills/verify-draft-day/SKILL.md .cursor/skills/verify-draft-day/features/README.md .cursor/skills/verify-draft-day/helpers/control.sh docs/DECISIONS.tsv src/server/http.ts src/ui/app.js src/ui/index.html src/ui/lessons.css src/ui/lessons.js 
+shared: .cursor/skills/verify-draft-day/SKILL.md .cursor/skills/verify-draft-day/features/README.md docs/DECISIONS.tsv src/ui/app.js src/ui/index.html 
+mergesim: ok (DECISIONS.tsv at most)
+exit 0

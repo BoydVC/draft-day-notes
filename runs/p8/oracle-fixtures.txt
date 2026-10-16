@@ -1,0 +1,23 @@
+ok   sha256 README.md
+ok   sha256 expected.json
+ok   sha256 hostile-picks.jsonl
+ok   sha256 hostile.jsonl
+ok   sha256 ledger-edges.jsonl
+ok   sha256 ledger-harness.d.mts
+ok   sha256 ledger-harness.mjs
+ok   sha256 ledger-real.jsonl
+ok   sha256 ledger-tuesday.jsonl
+ok   sha256 picks.jsonl
+ok   sha256 pulls.json
+ok   import pulls.json == ledger-real.jsonl lines 1-9
+ok   row real
+ok   row tuesday
+ok   row edges
+ok   row hostile
+ok   row picks-only
+ok   row empty
+ok   mutation drop Pick 7 verdict -> #9 unverified
+ok   mutation code file in #2 drift -> #2 stale
+ok   mutation #6 not draft -> NOT DRAFT #6
+ok   ledgerJson hostile: no raw U+007F-U+009F/U+2028/U+2029, parses back equal
+TOTAL 22/22
